@@ -13,9 +13,11 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 ## CLI Options
 
 - `-r, --root <path>` - Root directory for worktrees (validates path exists)
+- `-p, --poll <ms>` - Polling interval in milliseconds (default: 500, 0 to disable)
 
 ## Structure
 
-- `src/` - React/Ink components (TSX)
+- `src/index.tsx` - React/Ink UI components
+- `src/git.ts` - Git backend (worktree listing)
 - `dist/` - Compiled output
 - `.worktrees/` - Worktree management scripts (source these, don't execute directly)

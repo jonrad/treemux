@@ -1,55 +1,17 @@
 #!/usr/bin/env node
 import { render, Box, Text, useApp, useInput } from "ink";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { program } from "commander";
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { execSync } from "child_process";
-
-interface Worktree {
-  path: string;
-  name: string;
-  branch: string;
-  commit: string;
-}
-
-function getWorktrees(root: string): Worktree[] {
-  try {
-    const output = execSync("git worktree list --porcelain", {
-      cwd: root,
-      encoding: "utf-8",
-    });
-
-    const worktrees: Worktree[] = [];
-    let current: Partial<Worktree> = {};
-
-    for (const line of output.split("\n")) {
-      if (line.startsWith("worktree ")) {
-        current.path = line.slice(9);
-        current.name = current.path.split("/").pop() || current.path;
-      } else if (line.startsWith("HEAD ")) {
-        current.commit = line.slice(5, 12);
-      } else if (line.startsWith("branch ")) {
-        current.branch = line.slice(7).replace("refs/heads/", "");
-      } else if (line === "") {
-        if (current.path) {
-          worktrees.push(current as Worktree);
-        }
-        current = {};
-      }
-    }
-
-    return worktrees;
-  } catch {
-    return [];
-  }
-}
+import { getWorktrees, Worktree } from "./git.js";
 
 program
   .option("-r, --root <path>", "root directory for worktrees")
+  .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)", "500")
   .parse();
 
-const options = program.opts<{ root?: string }>();
+const options = program.opts<{ root?: string; poll: string }>();
 
 let root = process.cwd();
 if (options.root) {
@@ -61,12 +23,31 @@ if (options.root) {
   root = resolvedPath;
 }
 
-const initialWorktrees = getWorktrees(root);
+const pollInterval = parseInt(options.poll, 10);
 
-function App() {
+function App({ root, pollInterval }: { root: string; pollInterval: number }) {
   const { exit } = useApp();
-  const [worktrees] = useState<Worktree[]>(initialWorktrees);
+  const [worktrees, setWorktrees] = useState<Worktree[]>(() =>
+    getWorktrees(root)
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useEffect(() => {
+    if (pollInterval <= 0) return;
+
+    const interval = setInterval(() => {
+      const updated = getWorktrees(root);
+      setWorktrees(updated);
+    }, pollInterval);
+
+    return () => clearInterval(interval);
+  }, [root, pollInterval]);
+
+  useEffect(() => {
+    if (selectedIndex >= worktrees.length && worktrees.length > 0) {
+      setSelectedIndex(worktrees.length - 1);
+    }
+  }, [worktrees.length, selectedIndex]);
 
   useInput((input, key) => {
     if (input === "q" || (key.ctrl && input === "c")) {
@@ -116,4 +97,4 @@ function App() {
   );
 }
 
-render(<App />);
+render(<App root={root} pollInterval={pollInterval} />);
