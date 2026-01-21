@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { render, Box, Text, useApp, useInput } from "ink";
+import { render, Box, Text, useApp, useInput, useStdout } from "ink";
 import { useState, useEffect, useCallback } from "react";
 import { program } from "commander";
 import { existsSync } from "fs";
@@ -33,6 +33,7 @@ type Status = { type: "success" | "error"; message: string } | null;
 
 function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval: number; worktreesDir: string }) {
   const { exit } = useApp();
+  const { stdout } = useStdout();
   const [worktrees, setWorktrees] = useState<Worktree[]>(() =>
     getWorktrees(root)
   );
@@ -147,10 +148,18 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
   });
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box
+      flexDirection="column"
+      width={stdout.columns}
+      height={stdout.rows}
+      padding={1}
+    >
+      {/* Header */}
       <Text bold color="green">
         worktrees-tui
       </Text>
+
+      {/* Status message */}
       {status && (
         <Box marginTop={1}>
           <Text color={status.type === "success" ? "green" : "red"}>
@@ -158,6 +167,8 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
           </Text>
         </Box>
       )}
+
+      {/* Directories / Content */}
       {mode === "add" ? (
         <Box flexDirection="column" marginTop={1}>
           <Box>
@@ -165,35 +176,39 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
             <Text color="cyan">{inputValue}</Text>
             <Text color="cyan">▋</Text>
           </Box>
-          <Box marginTop={1}>
-            <Text dimColor>Enter to create • Esc to cancel</Text>
-          </Box>
         </Box>
       ) : (
-        <>
-          <Box flexDirection="column" marginTop={1}>
-            {worktrees.length === 0 ? (
-              <Text dimColor>No worktrees found</Text>
-            ) : (
-              worktrees.map((wt, index) => {
-                const isSelected = index === selectedIndex;
-                return (
-                  <Box key={wt.path}>
-                    <Text inverse={isSelected}>
-                      {isSelected ? "❯ " : "  "}
-                      {wt.name}
-                    </Text>
-                    <Text dimColor> [{wt.branch}]</Text>
-                  </Box>
-                );
-              })
-            )}
-          </Box>
-          <Box marginTop={1}>
-            <Text dimColor>↑/k up • ↓/j down • a add • q quit</Text>
-          </Box>
-        </>
+        <Box flexDirection="column" marginTop={1}>
+          {worktrees.length === 0 ? (
+            <Text dimColor>No worktrees found</Text>
+          ) : (
+            worktrees.map((wt, index) => {
+              const isSelected = index === selectedIndex;
+              return (
+                <Box key={wt.path}>
+                  <Text inverse={isSelected}>
+                    {isSelected ? "❯ " : "  "}
+                    {wt.name}
+                  </Text>
+                  <Text dimColor> [{wt.branch}]</Text>
+                </Box>
+              );
+            })
+          )}
+        </Box>
       )}
+
+      {/* Flexible spacer */}
+      <Box flexGrow={1} />
+
+      {/* Key map */}
+      <Box>
+        {mode === "add" ? (
+          <Text dimColor>Enter to create • Esc to cancel</Text>
+        ) : (
+          <Text dimColor>↑/k up • ↓/j down • a add • q quit</Text>
+        )}
+      </Box>
     </Box>
   );
 }
