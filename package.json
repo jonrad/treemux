@@ -24,10 +24,12 @@
     "node": ">=18"
   },
   "dependencies": {
+    "commander": "^14.0.2",
     "ink": "^6.6.0",
     "react": "^19.2.3"
   },
   "devDependencies": {
+    "@types/node": "^25.0.9",
     "@types/react": "^19.2.9",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3"
