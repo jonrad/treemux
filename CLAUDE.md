@@ -14,6 +14,14 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 
 - `-r, --root <path>` - Root directory for worktrees (validates path exists)
 - `-p, --poll <ms>` - Polling interval in milliseconds (default: 500, 0 to disable)
+- `-w, --worktrees-dir <path>` - Directory for new worktrees (default: .worktrees)
+
+## Keybindings
+
+- `↑/k` - Move up
+- `↓/j` - Move down
+- `a` - Add new worktree (prompts for name)
+- `q` - Quit
 
 ## Structure
 
