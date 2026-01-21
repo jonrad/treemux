@@ -7,7 +7,10 @@
       "Bash(tsc:*)",
       "Bash(eslint:*)",
       "Bash(prettier:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(chmod:*)",
+      "Skill(creating-claude-md)",
+      "Skill(writing-commit-messages)"
     ]
   }
 }
