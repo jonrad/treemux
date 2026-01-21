@@ -38,6 +38,7 @@ pnpm start -- --root /path/to/repo
 | Option | Description |
 |--------|-------------|
 | `-r, --root <path>` | Root directory for worktrees (must exist) |
+| `-p, --poll <ms>` | Polling interval in milliseconds (default: 500, 0 to disable) |
 
 ### Shell Scripts
 
@@ -67,7 +68,8 @@ pnpm start    # Run the app
 
 ```
 ├── src/
-│   └── index.tsx         # Main React/Ink application
+│   ├── index.tsx         # Main React/Ink application
+│   └── git.ts            # Git backend (worktree listing)
 ├── dist/                 # Compiled output
 ├── .worktrees/
 │   ├── worktree-add.sh   # Create new worktrees
