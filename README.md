@@ -1,0 +1,86 @@
+# worktrees-tui
+
+A terminal user interface for managing Git worktrees, built with TypeScript, React, and Ink.
+
+## Features
+
+- Interactive list of all Git worktrees with branch and commit info
+- Keyboard navigation with arrow keys or vim-style (j/k) bindings
+- Custom root directory support for remote worktree management
+- Shell scripts for creating and merging worktrees
+
+## Installation
+
+```bash
+pnpm install
+pnpm build
+```
+
+## Usage
+
+### TUI Application
+
+```bash
+# Run in current directory
+pnpm start
+
+# Run with custom root directory
+pnpm start -- --root /path/to/repo
+```
+
+**Keyboard Controls:**
+- `↑` / `k` - Move up
+- `↓` / `j` - Move down
+- `q` / `Ctrl+C` - Quit
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `-r, --root <path>` | Root directory for worktrees (must exist) |
+
+### Shell Scripts
+
+The `.worktrees/` directory contains helper scripts that must be **sourced** (not executed):
+
+```bash
+# Create a new worktree and cd into it
+source .worktrees/worktree-add.sh my-feature
+
+# Merge current worktree back to main and clean up
+source .worktrees/worktree-merge.sh
+
+# Merge a specific worktree
+source .worktrees/worktree-merge.sh my-feature
+```
+
+## Development
+
+```bash
+pnpm dev      # Watch mode (tsc)
+pnpm watch    # Watch mode with tsx (runs directly)
+pnpm build    # Compile TypeScript
+pnpm start    # Run the app
+```
+
+## Project Structure
+
+```
+├── src/
+│   └── index.tsx         # Main React/Ink application
+├── dist/                 # Compiled output
+├── .worktrees/
+│   ├── worktree-add.sh   # Create new worktrees
+│   └── worktree-merge.sh # Merge and remove worktrees
+└── package.json
+```
+
+## Requirements
+
+- Node.js >= 18
+- pnpm
+- Git
+
+## License
+
+MIT
