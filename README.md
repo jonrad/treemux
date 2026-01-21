@@ -31,6 +31,8 @@ pnpm start -- --root /path/to/repo
 **Keyboard Controls:**
 - `↑` / `k` - Move up
 - `↓` / `j` - Move down
+- `a` - Add new worktree
+- `r` - Remove selected worktree
 - `q` / `Ctrl+C` - Quit
 
 ### CLI Options

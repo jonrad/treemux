@@ -72,6 +72,26 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
     }
   }, [root, worktreesDir, worktrees, refreshWorktrees]);
 
+  const removeWorktree = useCallback((worktree: Worktree) => {
+    try {
+      execSync(`git worktree remove "${worktree.path}"`, {
+        cwd: root,
+        encoding: "utf-8",
+        stdio: "pipe",
+      });
+      setStatus({ type: "success", message: `Removed worktree '${worktree.name}'` });
+      refreshWorktrees();
+    } catch (err) {
+      let message = "Failed to remove worktree";
+      if (err instanceof Error && err.message) {
+        // Extract the actual git error message from stderr
+        const match = err.message.match(/fatal: (.+)/);
+        message = match ? match[1] : err.message;
+      }
+      setStatus({ type: "error", message });
+    }
+  }, [root, refreshWorktrees]);
+
   useEffect(() => {
     if (pollInterval <= 0) return;
 
@@ -135,6 +155,14 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
     }
 
     if (worktrees.length === 0) return;
+
+    if (input === "r") {
+      const selected = worktrees[selectedIndex];
+      if (selected) {
+        removeWorktree(selected);
+      }
+      return;
+    }
 
     if (key.upArrow || input === "k") {
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
@@ -206,7 +234,7 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         {mode === "add" ? (
           <Text dimColor>Enter to create • Esc to cancel</Text>
         ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • q quit</Text>
+          <Text dimColor>↑/k up • ↓/j down • a add • r remove • q quit</Text>
         )}
       </Box>
     </Box>

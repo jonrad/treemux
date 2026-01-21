@@ -21,6 +21,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `↑/k` - Move up
 - `↓/j` - Move down
 - `a` - Add new worktree (prompts for name)
+- `r` - Remove selected worktree
 - `q` - Quit
 
 ## Structure
