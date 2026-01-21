@@ -12,3 +12,4 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 
 - `src/` - React/Ink components (TSX)
 - `dist/` - Compiled output
+- `.worktrees/` - Worktree management scripts (source these, don't execute directly)
