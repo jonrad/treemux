@@ -28,8 +28,16 @@ if [[ "$_this_script" != /* ]]; then
     _this_script="$(pwd)/$_this_script"
 fi
 SCRIPT_DIR="$(cd "$(dirname "$_this_script")" && pwd)"
-MAIN_REPO="$(dirname "$SCRIPT_DIR")"
 unset _this_script
+
+# If running from within a worktree, SCRIPT_DIR will be like:
+# /main/repo/.worktrees/worktree-name/.worktrees
+# We need to extract /main/repo as MAIN_REPO
+if [[ "$SCRIPT_DIR" =~ /.worktrees/[^/]+/.worktrees$ ]]; then
+    MAIN_REPO="${SCRIPT_DIR%%/.worktrees/*}"
+else
+    MAIN_REPO="$(dirname "$SCRIPT_DIR")"
+fi
 
 # Check if current directory is inside .worktrees/<name>
 if [[ "$CURRENT_DIR" == */.worktrees/* ]]; then
