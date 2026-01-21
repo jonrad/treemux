@@ -5,7 +5,8 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 ## Commands
 
 - `pnpm build` - Compile TypeScript
-- `pnpm dev` - Watch mode
+- `pnpm dev` - Watch mode (tsc)
+- `pnpm watch` - Watch mode with tsx (runs directly)
 - `pnpm start` - Run the app
 
 ## Structure
