@@ -1,0 +1,35 @@
+{
+  "name": "solarized-dark",
+  "colors": {
+    "primary": "#268BD2",
+    "secondary": "#2AA198",
+    "accent": "#B58900",
+    "text": "#839496",
+    "textMuted": "#586E75",
+    "textHighlight": "#93A1A1",
+    "success": "#859900",
+    "error": "#DC322F",
+    "warning": "#CB4B16",
+    "border": "#586E75",
+    "selection": "#268BD2",
+    "selectionText": "#FDF6E3"
+  },
+  "icons": {
+    "selected": ">",
+    "bullet": "-",
+    "diamond": "*",
+    "arrow": "->",
+    "check": "+",
+    "cross": "x",
+    "sortRecent": "t",
+    "sortBranch": "b",
+    "dividerLeft": "─",
+    "dividerRight": "─",
+    "sectionMarker": "│"
+  },
+  "header": {
+    "large": "┌───────────────────────────────┐\n│        TREEMUX              │\n└───────────────────────────────┘",
+    "compact": "── TREEMUX ──",
+    "minimal": "treemux"
+  }
+}

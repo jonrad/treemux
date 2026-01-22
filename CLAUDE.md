@@ -1,6 +1,6 @@
-# worktrees-tui
+# TreeMux
 
-Terminal UI for git worktrees built with TypeScript, React, and Ink.
+Terminal UI for git worktrees built with TypeScript, React, and Ink. Features a themeable interface with multiple built-in themes.
 
 ## Commands
 
@@ -17,6 +17,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `-w, --worktrees-dir <path>` - Directory for new worktrees (default: .worktrees)
 - `-s, --sort <order>` - Sort order: recent or branch (default: recent)
 - `-d, --details` / `--no-details` - Show/hide git details (default: true)
+- `-t, --theme <name|path>` - Theme name or path to JSON file (default: cyberpunk)
 
 All CLI options can also be specified in a config file. CLI args override config file values.
 
@@ -34,7 +35,8 @@ Example `.worktrees-tuirc.json`:
   "poll": "1000",
   "worktreesDir": ".worktrees",
   "sort": "recent",
-  "details": true
+  "details": true,
+  "theme": "cyberpunk"
 }
 ```
 
@@ -45,16 +47,25 @@ Example `.worktrees-tuirc.json`:
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
 - `s` - Toggle sort order (recent/branch)
+- `t` - Open theme picker
 - `0-9` - Send cd to tmux pane (remembered per worktree)
 - `g` - Go to pane for selected worktree (uses history or detects by cwd)
 - `q` - Show tmux pane numbers
 - `Ctrl+C` - Quit
 
+## Themes
+
+Built-in themes: cyberpunk, monochrome, ocean, forest, sunset, minimal
+
+Custom themes can be added as JSON files in the `themes/` directory. See existing themes for format.
+
 ## Structure
 
 - `src/index.tsx` - React/Ink UI components
+- `src/theme.ts` - Theme system (types, built-in themes, loading)
 - `src/git.ts` - Git backend (worktree listing)
 - `src/tmux.ts` - Tmux integration (pane detection, send-keys)
+- `themes/` - Custom theme JSON files
 - `dist/` - Compiled output
 - `.worktrees/` - Worktree management scripts (source these, don't execute directly)
 

@@ -1,0 +1,35 @@
+{
+  "name": "classic-mac",
+  "colors": {
+    "primary": "#FFFFFF",
+    "secondary": "#AAAAAA",
+    "accent": "#FFFFFF",
+    "text": "#FFFFFF",
+    "textMuted": "#888888",
+    "textHighlight": "#FFFFFF",
+    "success": "#FFFFFF",
+    "error": "#FFFFFF",
+    "warning": "#AAAAAA",
+    "border": "#AAAAAA",
+    "selection": "#FFFFFF",
+    "selectionText": "#FFFFFF"
+  },
+  "icons": {
+    "selected": "☞",
+    "bullet": "◇",
+    "diamond": "◆",
+    "arrow": "→",
+    "check": "✓",
+    "cross": "✕",
+    "sortRecent": "◐",
+    "sortBranch": "⌥",
+    "dividerLeft": "◀",
+    "dividerRight": "▶",
+    "sectionMarker": "▪"
+  },
+  "header": {
+    "large": "┌─────────────────────────────────────┐\n│ ▣ ≡  TreeMux                        │\n├─────────────────────────────────────┤\n│  ┌───┐  ┌───┐  ┌───┐  ┌───┐        │\n│  │ ⌘ │  │ ⌥ │  │ ⇧ │  │ ⌃ │        │\n│  └───┘  └───┘  └───┘  └───┘        │\n└─────────────────────────────────────┘",
+    "compact": "┌──────────────────┐\n│ ▣ TreeMux        │\n└──────────────────┘",
+    "minimal": "▣ TreeMux"
+  }
+}

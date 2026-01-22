@@ -1,0 +1,35 @@
+{
+  "name": "dracula",
+  "colors": {
+    "primary": "#BD93F9",
+    "secondary": "#FF79C6",
+    "accent": "#50FA7B",
+    "text": "#F8F8F2",
+    "textMuted": "#6272A4",
+    "textHighlight": "#8BE9FD",
+    "success": "#50FA7B",
+    "error": "#FF5555",
+    "warning": "#FFB86C",
+    "border": "#44475A",
+    "selection": "#FF79C6",
+    "selectionText": "#282A36"
+  },
+  "icons": {
+    "selected": "▸",
+    "bullet": "•",
+    "diamond": "◆",
+    "arrow": "→",
+    "check": "✓",
+    "cross": "✗",
+    "sortRecent": "⏱",
+    "sortBranch": "⎇",
+    "dividerLeft": "◈",
+    "dividerRight": "◈",
+    "sectionMarker": "▌"
+  },
+  "header": {
+    "large": "╭─────────────────────────────────────╮\n│     🦇  W O R K T R E E S  🦇      │\n│     ═══════════════════════        │\n╰─────────────────────────────────────╯",
+    "compact": "🦇 TREEMUX 🦇\n═══════════════",
+    "minimal": "🦇 treemux"
+  }
+}

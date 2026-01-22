@@ -1,0 +1,35 @@
+{
+  "name": "windows31",
+  "colors": {
+    "primary": "#000080",
+    "secondary": "#FFFFFF",
+    "accent": "#FFFF00",
+    "text": "#FFFFFF",
+    "textMuted": "#808080",
+    "textHighlight": "#FFFFFF",
+    "success": "#008000",
+    "error": "#FF0000",
+    "warning": "#FFFF00",
+    "border": "#808080",
+    "selection": "#000080",
+    "selectionText": "#FFFFFF"
+  },
+  "icons": {
+    "selected": "►",
+    "bullet": "■",
+    "diamond": "◆",
+    "arrow": "→",
+    "check": "√",
+    "cross": "×",
+    "sortRecent": "¤",
+    "sortBranch": "╬",
+    "dividerLeft": "▐",
+    "dividerRight": "▌",
+    "sectionMarker": "█"
+  },
+  "header": {
+    "large": "╔══════════════════════════════════════╗\n║█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█░║\n║█  TreeMux                    [─][□][×]█░║\n║█▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█░║\n║░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░║\n╚══════════════════════════════════════╝",
+    "compact": "┌──────────────────┐\n│ TreeMux     [×]  │\n└──────────────────┘",
+    "minimal": "■ TreeMux"
+  }
+}

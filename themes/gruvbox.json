@@ -1,0 +1,35 @@
+{
+  "name": "gruvbox",
+  "colors": {
+    "primary": "#FABD2F",
+    "secondary": "#FE8019",
+    "accent": "#B8BB26",
+    "text": "#EBDBB2",
+    "textMuted": "#928374",
+    "textHighlight": "#FBF1C7",
+    "success": "#B8BB26",
+    "error": "#FB4934",
+    "warning": "#FABD2F",
+    "border": "#504945",
+    "selection": "#FE8019",
+    "selectionText": "#282828"
+  },
+  "icons": {
+    "selected": "▶",
+    "bullet": "●",
+    "diamond": "◆",
+    "arrow": "→",
+    "check": "✓",
+    "cross": "✗",
+    "sortRecent": "⧗",
+    "sortBranch": "⑂",
+    "dividerLeft": "◆",
+    "dividerRight": "◆",
+    "sectionMarker": "┃"
+  },
+  "header": {
+    "large": "╔═══════════════════════════════════╗\n║   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   ║\n║   █  W O R K T R E E S      █   ║\n║   ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀   ║\n╚═══════════════════════════════════╝",
+    "compact": "═══ TREEMUX ═══",
+    "minimal": "◆ treemux ◆"
+  }
+}

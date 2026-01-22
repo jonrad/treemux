@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { render, Box, Text, useApp, useInput, useStdout } from "ink";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
@@ -8,6 +8,224 @@ import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
 import { sendCdToPane, selectPane, findPanesWithPath } from "./tmux.js";
+import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption } from "./theme.js";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// THEME CONTEXT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ThemeContext = createContext<Theme>(DEFAULT_THEME);
+const useTheme = () => useContext(ThemeContext);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function Header({ width }: { width: number }) {
+  const theme = useTheme();
+
+  // Choose header based on terminal width
+  if (width >= 70 && theme.header.large) {
+    return (
+      <Box flexDirection="column" alignItems="center" marginTop={1}>
+        {theme.header.large.split("\n").map((line, i) => (
+          <Text key={i} color={i % 2 === 0 ? theme.colors.primary : theme.colors.secondary}>{line}</Text>
+        ))}
+      </Box>
+    );
+  } else if (width >= 45 && theme.header.compact) {
+    return (
+      <Box flexDirection="column" alignItems="center" marginTop={1}>
+        {theme.header.compact.split("\n").map((line, i) => (
+          <Text key={i} color={theme.colors.primary}>{line}</Text>
+        ))}
+      </Box>
+    );
+  } else {
+    return (
+      <Box justifyContent="center" marginTop={1}>
+        <Text bold color={theme.colors.secondary}>{theme.icons.dividerLeft ? `${theme.icons.dividerLeft} ` : ""}</Text>
+        <Text bold color={theme.colors.primary}>{theme.header.minimal}</Text>
+        <Text bold color={theme.colors.secondary}>{theme.icons.dividerRight ? ` ${theme.icons.dividerRight}` : ""}</Text>
+      </Box>
+    );
+  }
+}
+
+function Divider({ width }: { width: number }) {
+  const theme = useTheme();
+  return <Text color={theme.colors.border}>{"─".repeat(Math.max(1, width - 2))}</Text>;
+}
+
+function WorktreeItem({ worktree, isSelected, details }: { worktree: Worktree; isSelected: boolean; details?: GitDetails }) {
+  const theme = useTheme();
+  const indicator = isSelected ? theme.icons.selected : " ";
+
+  if (isSelected) {
+    return (
+      <Box>
+        <Text color={theme.colors.selection} bold>{indicator} </Text>
+        <Text color={theme.colors.selectionText} bold inverse>{` ${worktree.branch} `}</Text>
+        {details && (
+          <Text>
+            {" "}
+            {details.ahead > 0 && <Text color={theme.colors.success}>↑{details.ahead}</Text>}
+            {details.behind > 0 && <Text color={theme.colors.error}>↓{details.behind}</Text>}
+            {details.staged > 0 && <Text color={theme.colors.warning}>+{details.staged}</Text>}
+            {details.modified > 0 && <Text color={theme.colors.accent}>~{details.modified}</Text>}
+            {details.untracked > 0 && <Text color={theme.colors.textMuted}>?{details.untracked}</Text>}
+          </Text>
+        )}
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Text color={theme.colors.textMuted}>{indicator} </Text>
+      <Text color={theme.colors.textHighlight}> {worktree.branch}</Text>
+      {details && (
+        <Text>
+          {" "}
+          {details.ahead > 0 && <Text color={theme.colors.success}>↑{details.ahead}</Text>}
+          {details.behind > 0 && <Text color={theme.colors.error}>↓{details.behind}</Text>}
+          {details.staged > 0 && <Text color={theme.colors.warning}>+{details.staged}</Text>}
+          {details.modified > 0 && <Text color={theme.colors.accent}>~{details.modified}</Text>}
+          {details.untracked > 0 && <Text color={theme.colors.textMuted}>?{details.untracked}</Text>}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function InputPrompt({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <Box>
+      <Text color={theme.colors.secondary}>{"▸ "}</Text>
+      <Text color={theme.colors.textMuted}>{label}: </Text>
+      <Text color={theme.colors.primary} bold>{value}</Text>
+      <Text color={theme.colors.secondary}>{"█"}</Text>
+    </Box>
+  );
+}
+
+type Status = { type: "success" | "error"; message: string } | null;
+
+function StatusMessage({ status }: { status: Status }) {
+  const theme = useTheme();
+  if (!status) return null;
+
+  const isSuccess = status.type === "success";
+  const icon = isSuccess ? theme.icons.check : theme.icons.cross;
+  const color = isSuccess ? theme.colors.success : theme.colors.error;
+
+  return (
+    <Box>
+      <Text color={color}>{icon} </Text>
+      <Text color={color}>{status.message}</Text>
+    </Box>
+  );
+}
+
+function KeyHint({ keys, action }: { keys: string; action: string }) {
+  const theme = useTheme();
+  return (
+    <Box marginRight={1}>
+      <Text color={theme.colors.primary}>[</Text>
+      <Text color={theme.colors.secondary} bold>{keys}</Text>
+      <Text color={theme.colors.primary}>]</Text>
+      <Text color={theme.colors.textMuted}>{action} </Text>
+    </Box>
+  );
+}
+
+type Mode = "list" | "add" | "theme";
+
+function HelpBar({ mode, sortOrder }: { mode: Mode; sortOrder?: SortOrder }) {
+  if (mode === "add") {
+    return (
+      <Box>
+        <KeyHint keys="↵" action="create" />
+        <KeyHint keys="esc" action="cancel" />
+      </Box>
+    );
+  }
+
+  if (mode === "theme") {
+    return (
+      <Box>
+        <KeyHint keys="↑k" action="up" />
+        <KeyHint keys="↓j" action="dn" />
+        <KeyHint keys="↵" action="select" />
+        <KeyHint keys="esc" action="cancel" />
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexWrap="wrap">
+      <KeyHint keys="↑k" action="up" />
+      <KeyHint keys="↓j" action="dn" />
+      <KeyHint keys="a" action="add" />
+      <KeyHint keys="r" action="rm" />
+      <KeyHint keys="s" action={sortOrder === "recent" ? "→branch" : "→recent"} />
+      <KeyHint keys="t" action="theme" />
+      <KeyHint keys="0-9" action="pane" />
+      <KeyHint keys="g" action="go" />
+      <KeyHint keys="q" action="show" />
+      <KeyHint keys="^C" action="quit" />
+    </Box>
+  );
+}
+
+function ThemeItem({ themeOption, isSelected }: { themeOption: ThemeOption; isSelected: boolean }) {
+  const theme = useTheme();
+  const indicator = isSelected ? theme.icons.selected : " ";
+
+  if (isSelected) {
+    return (
+      <Box>
+        <Text color={theme.colors.selection} bold>{indicator} </Text>
+        <Text color={theme.colors.selectionText} bold inverse>{` ${themeOption.name} `}</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Text color={theme.colors.textMuted}>{indicator} </Text>
+      <Text color={theme.colors.textHighlight}> {themeOption.name}</Text>
+    </Box>
+  );
+}
+
+function PaneIndicator({ pane }: { pane: number | null }) {
+  const theme = useTheme();
+  if (pane === null) return null;
+  return (
+    <Box>
+      <Text color={theme.colors.textMuted}>{theme.icons.arrow} pane </Text>
+      <Text color={theme.colors.accent} bold>{pane}</Text>
+    </Box>
+  );
+}
+
+function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
+  const theme = useTheme();
+  const icon = sortOrder === "recent" ? theme.icons.sortRecent : theme.icons.sortBranch;
+  return (
+    <Box marginLeft={1}>
+      <Text color={theme.colors.textMuted}>│ </Text>
+      <Text color={theme.colors.accent}>{icon} </Text>
+      <Text color={theme.colors.textHighlight}>{sortOrder}</Text>
+    </Box>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLI SETUP
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
 const explorer = cosmiconfigSync("worktrees-tui");
@@ -21,9 +239,10 @@ program
   .option("-s, --sort <order>", "sort order: recent or branch (default: recent)")
   .option("-d, --details", "show git details (commits ahead/behind, modified files)")
   .option("--no-details", "hide git details")
+  .option("-t, --theme <name|path>", `theme name or path to JSON (built-in: ${Object.keys(BUILT_IN_THEMES).join(", ")})`)
   .parse();
 
-const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean }>();
+const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string }>();
 
 // Merge: defaults < config file < CLI args
 // For details: default is true, config can override, CLI can override config
@@ -34,6 +253,7 @@ const options = {
   worktreesDir: cliOptions.worktreesDir ?? fileConfig.worktreesDir ?? ".worktrees",
   sort: (cliOptions.sort ?? fileConfig.sort ?? "recent") as SortOrder,
   details: cliOptions.details !== undefined ? cliOptions.details : detailsDefault,
+  theme: cliOptions.theme ?? fileConfig.theme ?? "cyberpunk",
 };
 
 if (!process.env.TMUX) {
@@ -54,11 +274,22 @@ if (options.root) {
 
 const pollInterval = parseInt(options.poll, 10);
 const worktreesDir = options.worktreesDir;
+const theme = loadTheme(options.theme);
 
-type Mode = "list" | "add";
-type Status = { type: "success" | "error"; message: string } | null;
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { root: string; pollInterval: number; worktreesDir: string; defaultSort: SortOrder; showDetails: boolean }) {
+function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initialTheme, onThemeChange }: {
+  root: string;
+  pollInterval: number;
+  worktreesDir: string;
+  defaultSort: SortOrder;
+  showDetails: boolean;
+  initialTheme: Theme;
+  onThemeChange: (theme: Theme) => void;
+}) {
+  const theme = useTheme();
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [worktrees, setWorktrees] = useState<Worktree[]>(() =>
@@ -72,7 +303,18 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
   const [sortOrder, setSortOrder] = useState<SortOrder>(defaultSort);
   const [gitDetails, setGitDetails] = useState<Map<string, GitDetails>>(new Map());
 
+  // Theme picker state
+  const [availableThemes] = useState<ThemeOption[]>(() => getAvailableThemes());
+  const [themeIndex, setThemeIndex] = useState(0);
+
   const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
+
+  const termWidth = stdout.columns || 80;
+  const termHeight = stdout.rows || 24;
+
+  // Get the current pane for selected worktree
+  const selectedWorktree = sortedWorktrees[selectedIndex];
+  const currentPane = selectedWorktree ? paneHistory[selectedWorktree.path] ?? null : null;
 
   const refreshWorktrees = useCallback(() => {
     setWorktrees(getWorktrees(root));
@@ -193,6 +435,35 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
       return;
     }
 
+    if (mode === "theme") {
+      if (key.escape) {
+        setMode("list");
+        return;
+      }
+
+      if (key.return) {
+        const selectedTheme = availableThemes[themeIndex];
+        if (selectedTheme) {
+          const newTheme = loadThemeByOption(selectedTheme);
+          onThemeChange(newTheme);
+          setStatus({ type: "success", message: `Theme changed to '${selectedTheme.name}'` });
+        }
+        setMode("list");
+        return;
+      }
+
+      if (key.upArrow || input === "k") {
+        setThemeIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      }
+
+      if (key.downArrow || input === "j") {
+        setThemeIndex((prev) =>
+          prev < availableThemes.length - 1 ? prev + 1 : prev
+        );
+      }
+      return;
+    }
+
     // List mode
     if (key.ctrl && input === "c") {
       exit();
@@ -205,6 +476,14 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
 
     if (input === "s") {
       setSortOrder((prev) => (prev === "recent" ? "branch" : "recent"));
+      return;
+    }
+
+    if (input === "t") {
+      setMode("theme");
+      // Find current theme index
+      const currentIndex = availableThemes.findIndex(t => t.name === theme.name);
+      setThemeIndex(currentIndex >= 0 ? currentIndex : 0);
       return;
     }
 
@@ -249,7 +528,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
       }
     }
 
-    // Go to last pane (or best-guess based on cwd)
+    // Go to pane (uses history or detects by cwd)
     if (input === "g") {
       const selected = sortedWorktrees[selectedIndex];
       if (!selected) {
@@ -283,77 +562,128 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
   return (
     <Box
       flexDirection="column"
-      width={stdout.columns}
-      height={stdout.rows}
-      padding={1}
+      width={termWidth}
+      height={termHeight}
+      paddingX={1}
     >
-      {/* Header */}
-      <Text bold color="green">
-        worktrees-tui
-      </Text>
+      {/* HEADER */}
+      <Header width={termWidth} />
 
-      {/* Directories / Content */}
+      {/* Decorative divider after header */}
+      <Box marginY={1} justifyContent="center">
+        <Text color={theme.colors.secondary}>{theme.icons.dividerLeft}</Text>
+        <Divider width={Math.min(50, termWidth - 4)} />
+        <Text color={theme.colors.secondary}>{theme.icons.dividerRight}</Text>
+      </Box>
+
+      {/* CONTENT AREA */}
       {mode === "add" ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Box>
-            <Text>Worktree name: </Text>
-            <Text color="cyan">{inputValue}</Text>
-            <Text color="cyan">▋</Text>
+        <Box flexDirection="column" paddingX={2}>
+          <Box marginBottom={1}>
+            <Text color={theme.colors.secondary} bold>{"┌─ "}</Text>
+            <Text color={theme.colors.primary} bold>NEW WORKTREE</Text>
+            <Text color={theme.colors.secondary} bold>{" ─┐"}</Text>
+          </Box>
+          <InputPrompt label="Name" value={inputValue} />
+        </Box>
+      ) : mode === "theme" ? (
+        <Box flexDirection="column" paddingX={2}>
+          <Box marginBottom={1}>
+            <Text color={theme.colors.secondary} bold>{"┌─ "}</Text>
+            <Text color={theme.colors.primary} bold>SELECT THEME</Text>
+            <Text color={theme.colors.secondary} bold>{" ─┐"}</Text>
+          </Box>
+          <Box flexDirection="column">
+            {availableThemes.map((themeOption, index) => (
+              <ThemeItem
+                key={themeOption.name}
+                themeOption={themeOption}
+                isSelected={index === themeIndex}
+              />
+            ))}
           </Box>
         </Box>
       ) : (
-        <Box flexDirection="column" marginTop={1}>
+        <Box flexDirection="column" paddingX={1}>
+          {/* Section header */}
+          <Box marginBottom={1}>
+            <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
+            <Text color={theme.colors.textMuted}>BRANCHES </Text>
+            <Text color={theme.colors.textHighlight}>({sortedWorktrees.length})</Text>
+            <SortIndicator sortOrder={sortOrder} />
+            <PaneIndicator pane={currentPane} />
+          </Box>
+
+          {/* Worktree list */}
           {sortedWorktrees.length === 0 ? (
-            <Text dimColor>No worktrees found</Text>
+            <Box paddingX={2}>
+              <Text color={theme.colors.textMuted}>{"░░░ "}</Text>
+              <Text color={theme.colors.warning} dimColor>No worktrees found</Text>
+              <Text color={theme.colors.textMuted}>{" ░░░"}</Text>
+            </Box>
           ) : (
-            sortedWorktrees.map((wt, index) => {
-              const isSelected = index === selectedIndex;
-              const details = showDetails ? gitDetails.get(wt.path) : undefined;
-              return (
-                <Box key={wt.path}>
-                  <Text inverse={isSelected}>
-                    {isSelected ? "❯ " : "  "}
-                    {wt.branch}
-                  </Text>
-                  {details && (
-                    <Text dimColor>
-                      {" "}
-                      {details.ahead > 0 && <Text color="green">↑{details.ahead}</Text>}
-                      {details.behind > 0 && <Text color="red">↓{details.behind}</Text>}
-                      {details.staged > 0 && <Text color="yellow">+{details.staged}</Text>}
-                      {details.modified > 0 && <Text color="cyan">~{details.modified}</Text>}
-                      {details.untracked > 0 && <Text dimColor>?{details.untracked}</Text>}
-                    </Text>
-                  )}
-                </Box>
-              );
-            })
+            <Box flexDirection="column">
+              {sortedWorktrees.map((wt, index) => (
+                <WorktreeItem
+                  key={wt.path}
+                  worktree={wt}
+                  isSelected={index === selectedIndex}
+                  details={showDetails ? gitDetails.get(wt.path) : undefined}
+                />
+              ))}
+            </Box>
           )}
         </Box>
       )}
 
-      {/* Flexible spacer */}
+      {/* SPACER */}
       <Box flexGrow={1} />
 
-      {/* Status message */}
-      <Box height={1}>
-        {status && (
-          <Text color={status.type === "success" ? "green" : "red"}>
-            {status.message}
-          </Text>
-        )}
-      </Box>
+      {/* STATUS BAR */}
+      <Box flexDirection="column">
+        {/* Status message */}
+        <Box height={1} paddingX={1}>
+          <StatusMessage status={status} />
+        </Box>
 
-      {/* Key map */}
-      <Box>
-        {mode === "add" ? (
-          <Text dimColor>Enter to create • Esc to cancel</Text>
-        ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • r remove • s sort ({sortOrder}) • 0-9 cd pane • g go • q panes • Ctrl+C quit</Text>
-        )}
+        {/* Bottom divider */}
+        <Box justifyContent="center">
+          <Text color={theme.colors.border}>{"─".repeat(Math.min(60, termWidth - 4))}</Text>
+        </Box>
+
+        {/* Help bar */}
+        <Box paddingX={1} paddingY={0}>
+          <HelpBar mode={mode} sortOrder={sortOrder} />
+        </Box>
       </Box>
     </Box>
   );
 }
 
-render(<App root={root} pollInterval={pollInterval} worktreesDir={worktreesDir} defaultSort={options.sort} showDetails={options.details} />);
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT COMPONENT WITH THEME STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function Root({ initialTheme, showDetails }: { initialTheme: Theme; showDetails: boolean }) {
+  const [currentTheme, setCurrentTheme] = useState<Theme>(initialTheme);
+
+  return (
+    <ThemeContext.Provider value={currentTheme}>
+      <App
+        root={root}
+        pollInterval={pollInterval}
+        worktreesDir={worktreesDir}
+        defaultSort={options.sort}
+        showDetails={showDetails}
+        initialTheme={initialTheme}
+        onThemeChange={setCurrentTheme}
+      />
+    </ThemeContext.Provider>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+render(<Root initialTheme={theme} showDetails={options.details} />);
