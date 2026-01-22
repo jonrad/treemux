@@ -54,6 +54,7 @@ Example `.treemuxrc.json`:
 - `q` - Show tmux pane numbers
 - `<` - Move current pane to leftmost (full height, preserves width)
 - `>` - Move current pane to rightmost (full height, preserves width)
+- `Space` - Toggle pane width (minimize/restore)
 - `Ctrl+C` - Quit
 
 ## Themes

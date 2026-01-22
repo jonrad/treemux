@@ -218,3 +218,73 @@ export function selectPane(paneIndex: number): SendToPaneResult {
     return { success: false, error: `Failed to select pane ${paneIndex}` };
   }
 }
+
+/**
+ * Get the current pane's width
+ */
+export function getCurrentPaneWidth(): number {
+  const output = execSync("tmux display-message -p '#{pane_width}'", {
+    encoding: "utf-8",
+  });
+  return parseInt(output.trim(), 10);
+}
+
+/**
+ * Resize the current pane to a specific width
+ */
+export function resizeCurrentPane(width: number): SendToPaneResult {
+  if (!isInTmux()) {
+    return { success: false, error: "Not in tmux" };
+  }
+
+  try {
+    execSync(`tmux resize-pane -x ${width}`, { stdio: "ignore" });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to resize pane" };
+  }
+}
+
+// Minimum pane width that keeps content visible
+const MIN_PANE_WIDTH = 5;
+
+export interface TogglePaneWidthResult {
+  success: boolean;
+  error?: string;
+  wasMinimized?: boolean;
+  newWidth?: number;
+}
+
+/**
+ * Toggle pane width between minimum and a stored previous width.
+ * If at minimum (or close to it), restores to previousWidth.
+ * Otherwise, minimizes and returns the width to store.
+ */
+export function togglePaneWidth(previousWidth: number | null): TogglePaneWidthResult {
+  if (!isInTmux()) {
+    return { success: false, error: "Not in tmux" };
+  }
+
+  try {
+    const currentWidth = getCurrentPaneWidth();
+
+    // If we're at or near minimum and have a previous width, restore it
+    if (currentWidth <= MIN_PANE_WIDTH + 2 && previousWidth !== null) {
+      const result = resizeCurrentPane(previousWidth);
+      if (!result.success) {
+        return result;
+      }
+      return { success: true, wasMinimized: false, newWidth: previousWidth };
+    }
+
+    // Otherwise, minimize and return the current width to store
+    const widthToStore = currentWidth;
+    const result = resizeCurrentPane(MIN_PANE_WIDTH);
+    if (!result.success) {
+      return result;
+    }
+    return { success: true, wasMinimized: true, newWidth: widthToStore };
+  } catch {
+    return { success: false, error: "Failed to toggle pane width" };
+  }
+}

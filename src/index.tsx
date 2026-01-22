@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
-import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight } from "./tmux.js";
+import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth } from "./tmux.js";
 import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -174,6 +174,7 @@ function HelpBar({ mode, sortOrder }: { mode: Mode; sortOrder?: SortOrder }) {
       <KeyHint keys="0-9" action="pane" />
       <KeyHint keys="g" action="go" />
       <KeyHint keys="q" action="show" />
+      <KeyHint keys="␣" action="min" />
       <KeyHint keys="^C" action="quit" />
     </Box>
   );
@@ -219,6 +220,25 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
       <Text color={theme.colors.textMuted}>│ </Text>
       <Text color={theme.colors.accent}>{icon} </Text>
       <Text color={theme.colors.textHighlight}>{sortOrder}</Text>
+    </Box>
+  );
+}
+
+function MinimizedView({ height }: { height: number }) {
+  const theme = useTheme();
+  const text = "TREEMUX";
+  const textHeight = text.length;
+  const paddingTop = Math.max(0, Math.floor((height - textHeight) / 2));
+
+  return (
+    <Box flexDirection="column" alignItems="center" height={height}>
+      <Box flexDirection="column" marginTop={paddingTop}>
+        {text.split("").map((char, i) => (
+          <Text key={i} color={i % 2 === 0 ? theme.colors.primary : theme.colors.secondary} bold>
+            {char}
+          </Text>
+        ))}
+      </Box>
     </Box>
   );
 }
@@ -313,6 +333,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   const [paneHistory, setPaneHistory] = useState<Record<string, number>>({});
   const [sortOrder, setSortOrder] = useState<SortOrder>(defaultSort);
   const [gitDetails, setGitDetails] = useState<Map<string, GitDetails>>(new Map());
+  const [storedPaneWidth, setStoredPaneWidth] = useState<number | null>(null);
 
   // Theme picker state
   const [availableThemes] = useState<ThemeOption[]>(() => getAvailableThemes());
@@ -505,6 +526,22 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       return;
     }
 
+    if (input === " ") {
+      const result = togglePaneWidth(storedPaneWidth);
+      if (result.success) {
+        if (result.wasMinimized) {
+          setStoredPaneWidth(result.newWidth!);
+          setStatus({ type: "success", message: "Minimized pane" });
+        } else {
+          setStoredPaneWidth(null);
+          setStatus({ type: "success", message: "Restored pane width" });
+        }
+      } else {
+        setStatus({ type: "error", message: result.error || "Failed to toggle pane width" });
+      }
+      return;
+    }
+
     if (input === "s") {
       setSortOrder((prev) => (prev === "recent" ? "branch" : "recent"));
       return;
@@ -589,6 +626,11 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       }
     }
   });
+
+  // Show minimized view when pane is shrunk
+  if (storedPaneWidth !== null) {
+    return <MinimizedView height={termHeight} />;
+  }
 
   return (
     <Box
