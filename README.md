@@ -39,8 +39,13 @@ pnpm start -- --root /path/to/repo
 
 | Option | Description |
 |--------|-------------|
+| `-c, --config <path>` | Path to config file (overrides default search locations) |
 | `-r, --root <path>` | Root directory for worktrees (must exist) |
 | `-p, --poll <ms>` | Polling interval in milliseconds (default: 500, 0 to disable) |
+| `-w, --worktrees-dir <path>` | Directory name for new worktrees (default: .worktrees) |
+| `-s, --sort <order>` | Sort order: recent or branch (default: recent) |
+| `-d, --details` / `--no-details` | Show/hide git details (default: true) |
+| `-t, --theme <name\|path>` | Theme name or path to JSON file (default: cyberpunk) |
 
 ### Shell Scripts
 

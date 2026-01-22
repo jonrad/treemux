@@ -227,12 +227,8 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
 // CLI SETUP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
-const explorer = cosmiconfigSync("worktrees-tui");
-const configResult = explorer.search();
-const fileConfig = configResult?.config ?? {};
-
 program
+  .option("-c, --config <path>", "path to config file")
   .option("-r, --root <path>", "root directory for worktrees")
   .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)")
   .option("-w, --worktrees-dir <path>", "directory name for new worktrees")
@@ -242,7 +238,22 @@ program
   .option("-t, --theme <name|path>", `theme name or path to JSON (built-in: ${Object.keys(BUILT_IN_THEMES).join(", ")})`)
   .parse();
 
-const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string }>();
+const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string }>();
+
+// Load config file (from --config path or searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
+const explorer = cosmiconfigSync("worktrees-tui");
+let configResult;
+if (cliOptions.config) {
+  const configPath = resolve(cliOptions.config);
+  if (!existsSync(configPath)) {
+    console.error(`Error: Config file does not exist: ${configPath}`);
+    process.exit(1);
+  }
+  configResult = explorer.load(configPath);
+} else {
+  configResult = explorer.search();
+}
+const fileConfig = configResult?.config ?? {};
 
 // Merge: defaults < config file < CLI args
 // For details: default is true, config can override, CLI can override config

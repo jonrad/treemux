@@ -12,6 +12,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink. Features a 
 
 ## CLI Options
 
+- `-c, --config <path>` - Path to config file (overrides default search locations)
 - `-r, --root <path>` - Root directory for worktrees (validates path exists)
 - `-p, --poll <ms>` - Polling interval in milliseconds (default: 500, 0 to disable)
 - `-w, --worktrees-dir <path>` - Directory for new worktrees (default: .worktrees)
@@ -19,7 +20,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink. Features a 
 - `-d, --details` / `--no-details` - Show/hide git details (default: true)
 - `-t, --theme <name|path>` - Theme name or path to JSON file (default: cyberpunk)
 
-All CLI options can also be specified in a config file. CLI args override config file values.
+All CLI options (except `--config`) can also be specified in a config file. CLI args override config file values.
 
 ## Config File
 

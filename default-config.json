@@ -1,0 +1,8 @@
+{
+  "root": null,
+  "poll": "500",
+  "worktreesDir": ".worktrees",
+  "sort": "recent",
+  "details": true,
+  "theme": "cyberpunk"
+}
