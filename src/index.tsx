@@ -240,15 +240,6 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         worktrees-tui
       </Text>
 
-      {/* Status message */}
-      {status && (
-        <Box marginTop={1}>
-          <Text color={status.type === "success" ? "green" : "red"}>
-            {status.message}
-          </Text>
-        </Box>
-      )}
-
       {/* Directories / Content */}
       {mode === "add" ? (
         <Box flexDirection="column" marginTop={1}>
@@ -281,6 +272,15 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
 
       {/* Flexible spacer */}
       <Box flexGrow={1} />
+
+      {/* Status message */}
+      <Box height={1}>
+        {status && (
+          <Text color={status.type === "success" ? "green" : "red"}>
+            {status.message}
+          </Text>
+        )}
+      </Box>
 
       {/* Key map */}
       <Box>
