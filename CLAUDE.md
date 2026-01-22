@@ -16,6 +16,24 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `-p, --poll <ms>` - Polling interval in milliseconds (default: 500, 0 to disable)
 - `-w, --worktrees-dir <path>` - Directory for new worktrees (default: .worktrees)
 
+All CLI options can also be specified in a config file. CLI args override config file values.
+
+## Config File
+
+Uses cosmiconfig - searches for config in these locations:
+- `package.json` (`"worktrees-tui"` key)
+- `.worktrees-tuirc` / `.worktrees-tuirc.json`
+- `worktrees-tui.config.js`
+
+Example `.worktrees-tuirc.json`:
+```json
+{
+  "root": "/path/to/repo",
+  "poll": "1000",
+  "worktreesDir": ".worktrees"
+}
+```
+
 ## Keybindings
 
 - `↑/k` - Move up

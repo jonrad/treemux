@@ -2,19 +2,32 @@
 import { render, Box, Text, useApp, useInput, useStdout } from "ink";
 import { useState, useEffect, useCallback } from "react";
 import { program } from "commander";
+import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, Worktree } from "./git.js";
 import { sendCdToPane, selectPane } from "./tmux.js";
 
+// Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
+const explorer = cosmiconfigSync("worktrees-tui");
+const configResult = explorer.search();
+const fileConfig = configResult?.config ?? {};
+
 program
   .option("-r, --root <path>", "root directory for worktrees")
-  .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)", "500")
-  .option("-w, --worktrees-dir <path>", "directory name for new worktrees", ".worktrees")
+  .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)")
+  .option("-w, --worktrees-dir <path>", "directory name for new worktrees")
   .parse();
 
-const options = program.opts<{ root?: string; poll: string; worktreesDir: string }>();
+const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string }>();
+
+// Merge: defaults < config file < CLI args
+const options = {
+  root: cliOptions.root ?? fileConfig.root,
+  poll: cliOptions.poll ?? fileConfig.poll ?? "500",
+  worktreesDir: cliOptions.worktreesDir ?? fileConfig.worktreesDir ?? ".worktrees",
+};
 
 if (!process.env.TMUX) {
   console.error("Error: worktrees-tui must be run inside a tmux session.");
