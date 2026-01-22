@@ -9,6 +9,9 @@
 
 <div align="center">
 
+> [!CAUTION]
+> 🛑 **STOP** — This entire document is basically hallucinated. Don't trust anything you read.
+
 **A themeable terminal UI for git worktrees**
 
 *Navigate branches like directories. Teleport between contexts. Stay in flow.*
