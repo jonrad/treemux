@@ -6,7 +6,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, Worktree } from "./git.js";
-import { sendCdToPane } from "./tmux.js";
+import { sendCdToPane, selectPane } from "./tmux.js";
 
 program
   .option("-r, --root <path>", "root directory for worktrees")
@@ -48,6 +48,7 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
   const [mode, setMode] = useState<Mode>("list");
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<Status>(null);
+  const [lastPane, setLastPane] = useState<number | null>(null);
 
   const refreshWorktrees = useCallback(() => {
     setWorktrees(getWorktrees(root));
@@ -193,10 +194,23 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
       if (selected) {
         const result = sendCdToPane(paneIndex, selected.path);
         if (result.success) {
+          setLastPane(paneIndex);
           setStatus({ type: "success", message: `Sent cd to pane ${paneIndex}` });
         } else {
           setStatus({ type: "error", message: result.error || "Failed to send to pane" });
         }
+      }
+    }
+
+    // Go to last pane
+    if (input === "g") {
+      if (lastPane === null) {
+        setStatus({ type: "error", message: "No pane selected yet. Use 0-9 to send cd first." });
+        return;
+      }
+      const result = selectPane(lastPane);
+      if (!result.success) {
+        setStatus({ type: "error", message: result.error || "Failed to go to pane" });
       }
     }
   });
@@ -260,7 +274,7 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         {mode === "add" ? (
           <Text dimColor>Enter to create • Esc to cancel</Text>
         ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • q panes • Ctrl+C quit</Text>
+          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • g go to pane • q panes • Ctrl+C quit</Text>
         )}
       </Box>
     </Box>

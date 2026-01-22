@@ -84,3 +84,32 @@ export function sendCdToPane(paneIndex: number, path: string): SendToPaneResult 
   sendKeysToPane(paneIndex, `cd "${path}"\n`);
   return { success: true };
 }
+
+/**
+ * Select (focus) a specific pane by index
+ */
+export function selectPane(paneIndex: number): SendToPaneResult {
+  if (!isInTmux()) {
+    return { success: false, error: "Not running inside tmux" };
+  }
+
+  const panes = getPanesInCurrentWindow();
+  const targetPane = panes.find((p) => p.index === paneIndex);
+
+  if (!targetPane) {
+    const validPanes = panes.map((p) => p.index).join(", ");
+    return {
+      success: false,
+      error: `Pane ${paneIndex} not found. Valid panes: ${validPanes}`,
+    };
+  }
+
+  try {
+    execSync(`tmux select-pane -t :.${paneIndex}`, {
+      encoding: "utf-8",
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: `Failed to select pane ${paneIndex}` };
+  }
+}
