@@ -6,6 +6,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, Worktree } from "./git.js";
+import { sendCdToPane } from "./tmux.js";
 
 program
   .option("-r, --root <path>", "root directory for worktrees")
@@ -179,6 +180,20 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         prev < worktrees.length - 1 ? prev + 1 : prev
       );
     }
+
+    // Number keys 0-9 send cd to that pane
+    if (/^[0-9]$/.test(input)) {
+      const paneIndex = parseInt(input, 10);
+      const selected = worktrees[selectedIndex];
+      if (selected) {
+        const result = sendCdToPane(paneIndex, selected.path);
+        if (result.success) {
+          setStatus({ type: "success", message: `Sent cd to pane ${paneIndex}` });
+        } else {
+          setStatus({ type: "error", message: result.error || "Failed to send to pane" });
+        }
+      }
+    }
   });
 
   return (
@@ -240,7 +255,7 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         {mode === "add" ? (
           <Text dimColor>Enter to create • Esc to cancel</Text>
         ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • r remove • q quit</Text>
+          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • q quit</Text>
         )}
       </Box>
     </Box>

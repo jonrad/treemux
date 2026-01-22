@@ -22,11 +22,13 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `↓/j` - Move down
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
+- `0-9` - Send cd to tmux pane (requires tmux)
 - `q` - Quit
 
 ## Structure
 
 - `src/index.tsx` - React/Ink UI components
 - `src/git.ts` - Git backend (worktree listing)
+- `src/tmux.ts` - Tmux integration (pane detection, send-keys)
 - `dist/` - Compiled output
 - `.worktrees/` - Worktree management scripts (source these, don't execute directly)
