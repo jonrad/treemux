@@ -84,6 +84,7 @@ pnpm start    # Run the app
 - Node.js >= 18
 - pnpm
 - Git
+- tmux (must be run inside a tmux session)
 
 ## License
 

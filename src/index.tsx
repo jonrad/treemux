@@ -15,6 +15,12 @@ program
 
 const options = program.opts<{ root?: string; poll: string; worktreesDir: string }>();
 
+if (!process.env.TMUX) {
+  console.error("Error: worktrees-tui must be run inside a tmux session.");
+  console.error("Start tmux first with: tmux");
+  process.exit(1);
+}
+
 let root = process.cwd();
 if (options.root) {
   const resolvedPath = resolve(options.root);
