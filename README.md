@@ -1,96 +1,176 @@
-# worktrees-tui
+```
+████████╗██████╗ ███████╗███████╗███╗   ███╗██╗   ██╗██╗  ██╗
+╚══██╔══╝██╔══██╗██╔════╝██╔════╝████╗ ████║██║   ██║╚██╗██╔╝
+   ██║   ██████╔╝█████╗  █████╗  ██╔████╔██║██║   ██║ ╚███╔╝
+   ██║   ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╔╝██║██║   ██║ ██╔██╗
+   ██║   ██║  ██║███████╗███████╗██║ ╚═╝ ██║╚██████╔╝██╔╝ ██╗
+   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝
+```
 
-A terminal user interface for managing Git worktrees, built with TypeScript, React, and Ink.
+<div align="center">
 
-## Features
+**A themeable terminal UI for git worktrees**
 
-- Interactive list of all Git worktrees with branch and commit info
-- Keyboard navigation with arrow keys or vim-style (j/k) bindings
-- Custom root directory support for remote worktree management
-- Shell scripts for creating and merging worktrees
+*Navigate branches like directories. Teleport between contexts. Stay in flow.*
 
-## Installation
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
+[![Ink](https://img.shields.io/badge/Ink-000000?style=flat&logo=npm&logoColor=white)](https://github.com/vadimdemedes/ink)
+
+</div>
+
+---
+
+## ✦ What is this?
+
+Git worktrees let you check out multiple branches simultaneously in separate directories. **TreeMux** gives you a slick TUI to manage them - with tmux integration that remembers which pane goes with which worktree.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TREEMUX                                    cyberpunk theme │
+├─────────────────────────────────────────────────────────────┤
+│  ▸ main            a1b2c3d  feat: add dark mode      2h ago │
+│    feature/auth    e4f5g6h  wip: oauth flow          1d ago │
+│    bugfix/crash    i7j8k9l  fix: null check          3d ago │
+│    experiment      m0n1o2p  trying things            1w ago │
+└─────────────────────────────────────────────────────────────┘
+     [j/k] navigate   [0-9] cd to pane   [g] go to pane
+```
+
+## ⚡ Quick Start
 
 ```bash
 pnpm install
 pnpm build
+pnpm start
 ```
 
-## Usage
-
-### TUI Application
+Or with options:
 
 ```bash
-# Run in current directory
-pnpm start
-
-# Run with custom root directory
-pnpm start -- --root /path/to/repo
+pnpm start -- --root /path/to/repo --theme ocean
 ```
 
-**Keyboard Controls:**
-- `↑` / `k` - Move up
-- `↓` / `j` - Move down
-- `a` - Add new worktree
-- `r` - Remove selected worktree
-- `q` / `Ctrl+C` - Quit
+## ⌨ Keybindings
+
+```
+ Navigation                    Actions                      Tmux
+╭────────────────────────────╮╭────────────────────────────╮╭────────────────────────────╮
+│  ↑ k    move up            ││  a       add worktree      ││  0-9   cd to pane N        │
+│  ↓ j    move down          ││  r       remove worktree   ││  g     go to worktree pane │
+│                            ││  s       toggle sort       ││  q     show pane numbers   │
+│                            ││  t       theme picker      ││  < >   move pane left/right│
+╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
+                                    Ctrl+C to quit
+```
+
+## 🎨 Themes
+
+Six built-in themes to match your vibe:
+
+| Theme | Description |
+|-------|-------------|
+| `cyberpunk` | Neon pink & cyan on dark *(default)* |
+| `ocean` | Deep blues and teals |
+| `forest` | Earthy greens |
+| `sunset` | Warm oranges and purples |
+| `monochrome` | Classic terminal aesthetic |
+| `minimal` | Clean and understated |
+
+Press `t` to open the theme picker, or set via CLI:
+
+```bash
+pnpm start -- --theme forest
+```
+
+Custom themes go in `themes/` as JSON files.
+
+## ⚙ Configuration
 
 ### CLI Options
 
-| Option | Description |
-|--------|-------------|
-| `-c, --config <path>` | Path to config file (overrides default search locations) |
-| `-r, --root <path>` | Root directory for worktrees (must exist) |
-| `-p, --poll <ms>` | Polling interval in milliseconds (default: 500, 0 to disable) |
-| `-w, --worktrees-dir <path>` | Directory name for new worktrees (default: .worktrees) |
-| `-s, --sort <order>` | Sort order: recent or branch (default: recent) |
-| `-d, --details` / `--no-details` | Show/hide git details (default: true) |
-| `-t, --theme <name\|path>` | Theme name or path to JSON file (default: cyberpunk) |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-c, --config <path>` | Custom config file path | *auto-detected* |
+| `-r, --root <path>` | Repository root directory | *current dir* |
+| `-p, --poll <ms>` | Refresh interval (0 to disable) | `500` |
+| `-w, --worktrees-dir <path>` | Directory for new worktrees | `.worktrees` |
+| `-s, --sort <order>` | Sort by `recent` or `branch` | `recent` |
+| `-d, --details` | Show git details | `true` |
+| `-t, --theme <name>` | Theme name or JSON path | `cyberpunk` |
 
-### Shell Scripts
+### Config File
 
-The `.worktrees/` directory contains helper scripts that must be **sourced** (not executed):
+Uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig). Create any of:
+
+- `.worktrees-tuirc.json`
+- `.worktrees-tuirc`
+- `worktrees-tui.config.js`
+- `package.json` → `"worktrees-tui": { ... }`
+
+```json
+{
+  "root": "/path/to/repo",
+  "poll": "1000",
+  "worktreesDir": ".worktrees",
+  "sort": "recent",
+  "details": true,
+  "theme": "cyberpunk"
+}
+```
+
+CLI args override config file values.
+
+## 📁 Project Structure
+
+```
+src/
+├── index.tsx    ─── React/Ink UI components
+├── git.ts       ─── Git worktree operations
+├── theme.ts     ─── Theme system & built-ins
+└── tmux.ts      ─── Tmux pane integration
+
+themes/          ─── Custom theme JSON files
+.worktrees/      ─── Shell helper scripts (source these!)
+```
+
+## 🐚 Shell Scripts
+
+Helper scripts in `.worktrees/` must be **sourced**, not executed:
 
 ```bash
-# Create a new worktree and cd into it
+# Create worktree and cd into it
 source .worktrees/worktree-add.sh my-feature
 
-# Merge current worktree back to main and clean up
+# Merge current worktree back to main
 source .worktrees/worktree-merge.sh
 
-# Merge a specific worktree
+# Merge specific worktree
 source .worktrees/worktree-merge.sh my-feature
 ```
 
-## Development
+## 📋 Requirements
 
-```bash
-pnpm dev      # Watch mode (tsc)
-pnpm watch    # Watch mode with tsx (runs directly)
-pnpm build    # Compile TypeScript
-pnpm start    # Run the app
-```
-
-## Project Structure
-
-```
-├── src/
-│   ├── index.tsx         # Main React/Ink application
-│   └── git.ts            # Git backend (worktree listing)
-├── dist/                 # Compiled output
-├── .worktrees/
-│   ├── worktree-add.sh   # Create new worktrees
-│   └── worktree-merge.sh # Merge and remove worktrees
-└── package.json
-```
-
-## Requirements
-
-- Node.js >= 18
+- Node.js ≥ 18
 - pnpm
 - Git
-- tmux (must be run inside a tmux session)
+- tmux *(must run inside a tmux session)*
 
-## License
+## 🛠 Development
 
-MIT
+```bash
+pnpm dev      # tsc watch mode
+pnpm watch    # tsx watch mode (runs directly)
+pnpm build    # compile
+pnpm start    # run
+```
+
+---
+
+<div align="center">
+
+**MIT License**
+
+*Built with [Ink](https://github.com/vadimdemedes/ink) · Powered by caffeine and terminal nostalgia*
+
+</div>
