@@ -23,7 +23,8 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
 - `0-9` - Send cd to tmux pane (requires tmux)
-- `q` - Quit
+- `q` - Show tmux pane numbers
+- `Ctrl+C` - Quit
 
 ## Structure
 

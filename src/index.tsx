@@ -151,8 +151,13 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
     }
 
     // List mode
-    if (input === "q" || (key.ctrl && input === "c")) {
+    if (key.ctrl && input === "c") {
       exit();
+    }
+
+    if (input === "q") {
+      execSync("tmux display-panes -N ''", { stdio: "ignore" });
+      return;
     }
 
     if (input === "a") {
@@ -255,7 +260,7 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         {mode === "add" ? (
           <Text dimColor>Enter to create • Esc to cancel</Text>
         ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • q quit</Text>
+          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • q panes • Ctrl+C quit</Text>
         )}
       </Box>
     </Box>
