@@ -1,7 +1,79 @@
-import { execSync } from "child_process";
+import { execSync, exec } from "child_process";
 import { statSync } from "fs";
 
 export type SortOrder = "recent" | "branch";
+
+export interface GitDetails {
+  ahead: number;
+  behind: number;
+  modified: number;
+  staged: number;
+  untracked: number;
+}
+
+export function getWorktreeDetails(worktreePath: string): Promise<GitDetails> {
+  return new Promise((resolve) => {
+    const details: GitDetails = {
+      ahead: 0,
+      behind: 0,
+      modified: 0,
+      staged: 0,
+      untracked: 0,
+    };
+
+    // Get ahead/behind count
+    exec(
+      'git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null',
+      { cwd: worktreePath, encoding: "utf-8" },
+      (err, stdout) => {
+        if (!err && stdout.trim()) {
+          const [behind, ahead] = stdout.trim().split(/\s+/).map(Number);
+          details.behind = behind || 0;
+          details.ahead = ahead || 0;
+        }
+
+        // Get status counts
+        exec(
+          'git status --porcelain 2>/dev/null',
+          { cwd: worktreePath, encoding: "utf-8" },
+          (err2, stdout2) => {
+            if (!err2 && stdout2) {
+              for (const line of stdout2.split('\n')) {
+                if (!line) continue;
+                const index = line[0];
+                const working = line[1];
+
+                if (index === '?' && working === '?') {
+                  details.untracked++;
+                } else {
+                  if (index && index !== ' ' && index !== '?') {
+                    details.staged++;
+                  }
+                  if (working && working !== ' ' && working !== '?') {
+                    details.modified++;
+                  }
+                }
+              }
+            }
+            resolve(details);
+          }
+        );
+      }
+    );
+  });
+}
+
+export async function getAllWorktreeDetails(
+  worktrees: Worktree[]
+): Promise<Map<string, GitDetails>> {
+  const results = new Map<string, GitDetails>();
+  const promises = worktrees.map(async (wt) => {
+    const details = await getWorktreeDetails(wt.path);
+    results.set(wt.path, details);
+  });
+  await Promise.all(promises);
+  return results;
+}
 
 export function sortWorktrees(worktrees: Worktree[], sort: SortOrder): Worktree[] {
   return [...worktrees].sort((a, b) => {

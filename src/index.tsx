@@ -6,7 +6,7 @@ import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
-import { getWorktrees, sortWorktrees, Worktree, SortOrder } from "./git.js";
+import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
 import { sendCdToPane, selectPane } from "./tmux.js";
 
 // Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
@@ -19,16 +19,21 @@ program
   .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)")
   .option("-w, --worktrees-dir <path>", "directory name for new worktrees")
   .option("-s, --sort <order>", "sort order: recent or branch (default: recent)")
+  .option("-d, --details", "show git details (commits ahead/behind, modified files)")
+  .option("--no-details", "hide git details")
   .parse();
 
-const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string }>();
+const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean }>();
 
 // Merge: defaults < config file < CLI args
+// For details: default is true, config can override, CLI can override config
+const detailsDefault = fileConfig.details !== undefined ? fileConfig.details : true;
 const options = {
   root: cliOptions.root ?? fileConfig.root,
   poll: cliOptions.poll ?? fileConfig.poll ?? "500",
   worktreesDir: cliOptions.worktreesDir ?? fileConfig.worktreesDir ?? ".worktrees",
   sort: (cliOptions.sort ?? fileConfig.sort ?? "recent") as SortOrder,
+  details: cliOptions.details !== undefined ? cliOptions.details : detailsDefault,
 };
 
 if (!process.env.TMUX) {
@@ -53,7 +58,7 @@ const worktreesDir = options.worktreesDir;
 type Mode = "list" | "add";
 type Status = { type: "success" | "error"; message: string } | null;
 
-function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; pollInterval: number; worktreesDir: string; defaultSort: SortOrder }) {
+function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { root: string; pollInterval: number; worktreesDir: string; defaultSort: SortOrder; showDetails: boolean }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [worktrees, setWorktrees] = useState<Worktree[]>(() =>
@@ -65,6 +70,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; 
   const [status, setStatus] = useState<Status>(null);
   const [lastPane, setLastPane] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(defaultSort);
+  const [gitDetails, setGitDetails] = useState<Map<string, GitDetails>>(new Map());
 
   const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
 
@@ -134,6 +140,24 @@ function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; 
       setSelectedIndex(sortedWorktrees.length - 1);
     }
   }, [sortedWorktrees.length, selectedIndex]);
+
+  // Fetch git details asynchronously
+  useEffect(() => {
+    if (!showDetails || worktrees.length === 0) return;
+
+    // Fetch immediately
+    getAllWorktreeDetails(worktrees).then(setGitDetails);
+
+    // Then fetch on interval (use same poll interval, minimum 2s for details)
+    const detailsInterval = Math.max(pollInterval, 2000);
+    if (detailsInterval <= 0) return;
+
+    const interval = setInterval(() => {
+      getAllWorktreeDetails(worktrees).then(setGitDetails);
+    }, detailsInterval);
+
+    return () => clearInterval(interval);
+  }, [showDetails, worktrees, pollInterval]);
 
   useInput((input, key) => {
     // Clear status on any input
@@ -266,13 +290,23 @@ function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; 
           ) : (
             sortedWorktrees.map((wt, index) => {
               const isSelected = index === selectedIndex;
+              const details = showDetails ? gitDetails.get(wt.path) : undefined;
               return (
                 <Box key={wt.path}>
                   <Text inverse={isSelected}>
                     {isSelected ? "❯ " : "  "}
-                    {wt.name}
+                    {wt.branch}
                   </Text>
-                  <Text dimColor> [{wt.branch}]</Text>
+                  {details && (
+                    <Text dimColor>
+                      {" "}
+                      {details.ahead > 0 && <Text color="green">↑{details.ahead}</Text>}
+                      {details.behind > 0 && <Text color="red">↓{details.behind}</Text>}
+                      {details.staged > 0 && <Text color="yellow">+{details.staged}</Text>}
+                      {details.modified > 0 && <Text color="cyan">~{details.modified}</Text>}
+                      {details.untracked > 0 && <Text dimColor>?{details.untracked}</Text>}
+                    </Text>
+                  )}
                 </Box>
               );
             })
@@ -304,4 +338,4 @@ function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; 
   );
 }
 
-render(<App root={root} pollInterval={pollInterval} worktreesDir={worktreesDir} defaultSort={options.sort} />);
+render(<App root={root} pollInterval={pollInterval} worktreesDir={worktreesDir} defaultSort={options.sort} showDetails={options.details} />);
