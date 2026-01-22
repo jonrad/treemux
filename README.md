@@ -106,10 +106,10 @@ Custom themes go in `themes/` as JSON files.
 
 Uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig). Create any of:
 
-- `.worktrees-tuirc.json`
-- `.worktrees-tuirc`
-- `worktrees-tui.config.js`
-- `package.json` → `"worktrees-tui": { ... }`
+- `.treemuxrc.json`
+- `.treemuxrc`
+- `treemux.config.js`
+- `package.json` → `"treemux": { ... }`
 
 ```json
 {

@@ -1,11 +1,11 @@
 {
-  "name": "worktrees-tui",
+  "name": "treemux",
   "version": "1.0.0",
   "description": "A terminal user interface",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "worktrees-tui": "dist/index.js"
+    "treemux": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

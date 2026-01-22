@@ -25,11 +25,11 @@ All CLI options (except `--config`) can also be specified in a config file. CLI 
 ## Config File
 
 Uses cosmiconfig - searches for config in these locations:
-- `package.json` (`"worktrees-tui"` key)
-- `.worktrees-tuirc` / `.worktrees-tuirc.json`
-- `worktrees-tui.config.js`
+- `package.json` (`"treemux"` key)
+- `.treemuxrc` / `.treemuxrc.json`
+- `treemux.config.js`
 
-Example `.worktrees-tuirc.json`:
+Example `.treemuxrc.json`:
 ```json
 {
   "root": "/path/to/repo",

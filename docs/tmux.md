@@ -1,6 +1,6 @@
 # tmux Integration Reference
 
-Comprehensive documentation for tmux features relevant to worktrees-tui development.
+Comprehensive documentation for tmux features relevant to TreeMux development.
 
 ## Table of Contents
 
@@ -734,7 +734,7 @@ tmux wait-for -U channel
 
 ---
 
-## Feature Ideas for worktrees-tui
+## Feature Ideas for TreeMux
 
 Based on this research, potential features include:
 

@@ -240,8 +240,8 @@ program
 
 const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string }>();
 
-// Load config file (from --config path or searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
-const explorer = cosmiconfigSync("worktrees-tui");
+// Load config file (from --config path or searches package.json, .treemuxrc, treemux.config.js, etc.)
+const explorer = cosmiconfigSync("treemux");
 let configResult;
 if (cliOptions.config) {
   const configPath = resolve(cliOptions.config);
@@ -268,7 +268,7 @@ const options = {
 };
 
 if (!process.env.TMUX) {
-  console.error("Error: worktrees-tui must be run inside a tmux session.");
+  console.error("Error: TreeMux must be run inside a tmux session.");
   console.error("Start tmux first with: tmux");
   process.exit(1);
 }
