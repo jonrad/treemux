@@ -51,6 +51,8 @@ Example `.worktrees-tuirc.json`:
 - `0-9` - Send cd to tmux pane (remembered per worktree)
 - `g` - Go to pane for selected worktree (uses history or detects by cwd)
 - `q` - Show tmux pane numbers
+- `<` - Move current pane to leftmost (full height, preserves width)
+- `>` - Move current pane to rightmost (full height, preserves width)
 - `Ctrl+C` - Quit
 
 ## Themes

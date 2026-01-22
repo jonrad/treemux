@@ -124,6 +124,73 @@ export function sendCdToPane(paneIndex: number, path: string): SendToPaneResult 
 }
 
 /**
+ * Get the current window ID
+ */
+export function getCurrentWindow(): string {
+  return execSync("tmux display-message -p '#{window_id}'", {
+    encoding: "utf-8",
+  }).trim();
+}
+
+/**
+ * Move current pane to the leftmost position (full height, preserving width)
+ */
+export function movePaneToLeft(): SendToPaneResult {
+  if (!isInTmux()) {
+    return { success: false, error: "Not in tmux" };
+  }
+
+  try {
+    const windowId = getCurrentWindow();
+    // Get current pane ID and width before breaking
+    const paneId = execSync("tmux display-message -p '#{pane_id}'", {
+      encoding: "utf-8",
+    }).trim();
+    const paneWidth = execSync("tmux display-message -p '#{pane_width}'", {
+      encoding: "utf-8",
+    }).trim();
+    // Break pane to temp window (-d keeps focus)
+    execSync("tmux break-pane -d", { stdio: "ignore" });
+    // Join back at left using the pane ID (-f for full height)
+    execSync(`tmux join-pane -fbh -s ${paneId} -t ${windowId}`, { stdio: "ignore" });
+    // Restore original width
+    execSync(`tmux resize-pane -t ${paneId} -x ${paneWidth}`, { stdio: "ignore" });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to move pane left" };
+  }
+}
+
+/**
+ * Move current pane to the rightmost position (full height, preserving width)
+ */
+export function movePaneToRight(): SendToPaneResult {
+  if (!isInTmux()) {
+    return { success: false, error: "Not in tmux" };
+  }
+
+  try {
+    const windowId = getCurrentWindow();
+    // Get current pane ID and width before breaking
+    const paneId = execSync("tmux display-message -p '#{pane_id}'", {
+      encoding: "utf-8",
+    }).trim();
+    const paneWidth = execSync("tmux display-message -p '#{pane_width}'", {
+      encoding: "utf-8",
+    }).trim();
+    // Break pane to temp window (-d keeps focus)
+    execSync("tmux break-pane -d", { stdio: "ignore" });
+    // Join back at right using the pane ID (-f for full height)
+    execSync(`tmux join-pane -fh -s ${paneId} -t ${windowId}`, { stdio: "ignore" });
+    // Restore original width
+    execSync(`tmux resize-pane -t ${paneId} -x ${paneWidth}`, { stdio: "ignore" });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to move pane right" };
+  }
+}
+
+/**
  * Select (focus) a specific pane by index
  */
 export function selectPane(paneIndex: number): SendToPaneResult {

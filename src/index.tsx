@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
-import { sendCdToPane, selectPane, findPanesWithPath } from "./tmux.js";
+import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight } from "./tmux.js";
 import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -471,6 +471,26 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 
     if (input === "q") {
       execSync("tmux display-panes -N ''", { stdio: "ignore" });
+      return;
+    }
+
+    if (input === "<") {
+      const result = movePaneToLeft();
+      if (result.success) {
+        setStatus({ type: "success", message: "Moved pane to left" });
+      } else {
+        setStatus({ type: "error", message: result.error || "Failed to move pane" });
+      }
+      return;
+    }
+
+    if (input === ">") {
+      const result = movePaneToRight();
+      if (result.success) {
+        setStatus({ type: "success", message: "Moved pane to right" });
+      } else {
+        setStatus({ type: "error", message: result.error || "Failed to move pane" });
+      }
       return;
     }
 
