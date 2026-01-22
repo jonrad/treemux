@@ -6,7 +6,7 @@ import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
-import { getWorktrees, Worktree } from "./git.js";
+import { getWorktrees, sortWorktrees, Worktree, SortOrder } from "./git.js";
 import { sendCdToPane, selectPane } from "./tmux.js";
 
 // Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
@@ -18,15 +18,17 @@ program
   .option("-r, --root <path>", "root directory for worktrees")
   .option("-p, --poll <ms>", "polling interval in milliseconds (0 to disable)")
   .option("-w, --worktrees-dir <path>", "directory name for new worktrees")
+  .option("-s, --sort <order>", "sort order: recent or branch (default: recent)")
   .parse();
 
-const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string }>();
+const cliOptions = program.opts<{ root?: string; poll?: string; worktreesDir?: string; sort?: string }>();
 
 // Merge: defaults < config file < CLI args
 const options = {
   root: cliOptions.root ?? fileConfig.root,
   poll: cliOptions.poll ?? fileConfig.poll ?? "500",
   worktreesDir: cliOptions.worktreesDir ?? fileConfig.worktreesDir ?? ".worktrees",
+  sort: (cliOptions.sort ?? fileConfig.sort ?? "recent") as SortOrder,
 };
 
 if (!process.env.TMUX) {
@@ -51,7 +53,7 @@ const worktreesDir = options.worktreesDir;
 type Mode = "list" | "add";
 type Status = { type: "success" | "error"; message: string } | null;
 
-function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval: number; worktreesDir: string }) {
+function App({ root, pollInterval, worktreesDir, defaultSort }: { root: string; pollInterval: number; worktreesDir: string; defaultSort: SortOrder }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [worktrees, setWorktrees] = useState<Worktree[]>(() =>
@@ -62,6 +64,9 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<Status>(null);
   const [lastPane, setLastPane] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(defaultSort);
+
+  const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
 
   const refreshWorktrees = useCallback(() => {
     setWorktrees(getWorktrees(root));
@@ -125,10 +130,10 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
   }, [root, pollInterval]);
 
   useEffect(() => {
-    if (selectedIndex >= worktrees.length && worktrees.length > 0) {
-      setSelectedIndex(worktrees.length - 1);
+    if (selectedIndex >= sortedWorktrees.length && sortedWorktrees.length > 0) {
+      setSelectedIndex(sortedWorktrees.length - 1);
     }
-  }, [worktrees.length, selectedIndex]);
+  }, [sortedWorktrees.length, selectedIndex]);
 
   useInput((input, key) => {
     // Clear status on any input
@@ -174,16 +179,21 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
       return;
     }
 
+    if (input === "s") {
+      setSortOrder((prev) => (prev === "recent" ? "branch" : "recent"));
+      return;
+    }
+
     if (input === "a") {
       setMode("add");
       setInputValue("");
       return;
     }
 
-    if (worktrees.length === 0) return;
+    if (sortedWorktrees.length === 0) return;
 
     if (input === "r") {
-      const selected = worktrees[selectedIndex];
+      const selected = sortedWorktrees[selectedIndex];
       if (selected) {
         removeWorktree(selected);
       }
@@ -196,14 +206,14 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
 
     if (key.downArrow || input === "j") {
       setSelectedIndex((prev) =>
-        prev < worktrees.length - 1 ? prev + 1 : prev
+        prev < sortedWorktrees.length - 1 ? prev + 1 : prev
       );
     }
 
     // Number keys 0-9 send cd to that pane
     if (/^[0-9]$/.test(input)) {
       const paneIndex = parseInt(input, 10);
-      const selected = worktrees[selectedIndex];
+      const selected = sortedWorktrees[selectedIndex];
       if (selected) {
         const result = sendCdToPane(paneIndex, selected.path);
         if (result.success) {
@@ -251,10 +261,10 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         </Box>
       ) : (
         <Box flexDirection="column" marginTop={1}>
-          {worktrees.length === 0 ? (
+          {sortedWorktrees.length === 0 ? (
             <Text dimColor>No worktrees found</Text>
           ) : (
-            worktrees.map((wt, index) => {
+            sortedWorktrees.map((wt, index) => {
               const isSelected = index === selectedIndex;
               return (
                 <Box key={wt.path}>
@@ -287,11 +297,11 @@ function App({ root, pollInterval, worktreesDir }: { root: string; pollInterval:
         {mode === "add" ? (
           <Text dimColor>Enter to create • Esc to cancel</Text>
         ) : (
-          <Text dimColor>↑/k up • ↓/j down • a add • r remove • 0-9 cd pane • g go to pane • q panes • Ctrl+C quit</Text>
+          <Text dimColor>↑/k up • ↓/j down • a add • r remove • s sort ({sortOrder}) • 0-9 cd pane • g go • q panes • Ctrl+C quit</Text>
         )}
       </Box>
     </Box>
   );
 }
 
-render(<App root={root} pollInterval={pollInterval} worktreesDir={worktreesDir} />);
+render(<App root={root} pollInterval={pollInterval} worktreesDir={worktreesDir} defaultSort={options.sort} />);

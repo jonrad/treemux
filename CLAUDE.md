@@ -15,6 +15,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink.
 - `-r, --root <path>` - Root directory for worktrees (validates path exists)
 - `-p, --poll <ms>` - Polling interval in milliseconds (default: 500, 0 to disable)
 - `-w, --worktrees-dir <path>` - Directory for new worktrees (default: .worktrees)
+- `-s, --sort <order>` - Sort order: recent or branch (default: recent)
 
 All CLI options can also be specified in a config file. CLI args override config file values.
 
@@ -30,7 +31,8 @@ Example `.worktrees-tuirc.json`:
 {
   "root": "/path/to/repo",
   "poll": "1000",
-  "worktreesDir": ".worktrees"
+  "worktreesDir": ".worktrees",
+  "sort": "recent"
 }
 ```
 
@@ -40,6 +42,7 @@ Example `.worktrees-tuirc.json`:
 - `↓/j` - Move down
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
+- `s` - Toggle sort order (recent/branch)
 - `0-9` - Send cd to tmux pane (requires tmux)
 - `g` - Go to last pane that received cd
 - `q` - Show tmux pane numbers
