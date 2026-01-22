@@ -52,3 +52,8 @@ Example `.worktrees-tuirc.json`:
 - `src/tmux.ts` - Tmux integration (pane detection, send-keys)
 - `dist/` - Compiled output
 - `.worktrees/` - Worktree management scripts (source these, don't execute directly)
+
+## References
+
+- `docs/worktree.md` - Git worktree command reference
+- `docs/tmux.md` - Tmux integration reference
