@@ -45,8 +45,8 @@ Example `.worktrees-tuirc.json`:
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
 - `s` - Toggle sort order (recent/branch)
-- `0-9` - Send cd to tmux pane (requires tmux)
-- `g` - Go to last pane that received cd
+- `0-9` - Send cd to tmux pane (remembered per worktree)
+- `g` - Go to pane for selected worktree (uses history or detects by cwd)
 - `q` - Show tmux pane numbers
 - `Ctrl+C` - Quit
 

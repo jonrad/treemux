@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
-import { sendCdToPane, selectPane } from "./tmux.js";
+import { sendCdToPane, selectPane, findPanesWithPath } from "./tmux.js";
 
 // Load config file (searches package.json, .worktrees-tuirc, worktrees-tui.config.js, etc.)
 const explorer = cosmiconfigSync("worktrees-tui");
@@ -68,7 +68,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
   const [mode, setMode] = useState<Mode>("list");
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<Status>(null);
-  const [lastPane, setLastPane] = useState<number | null>(null);
+  const [paneHistory, setPaneHistory] = useState<Record<string, number>>({});
   const [sortOrder, setSortOrder] = useState<SortOrder>(defaultSort);
   const [gitDetails, setGitDetails] = useState<Map<string, GitDetails>>(new Map());
 
@@ -241,7 +241,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
       if (selected) {
         const result = sendCdToPane(paneIndex, selected.path);
         if (result.success) {
-          setLastPane(paneIndex);
+          setPaneHistory((prev) => ({ ...prev, [selected.path]: paneIndex }));
           setStatus({ type: "success", message: `Sent cd to pane ${paneIndex}` });
         } else {
           setStatus({ type: "error", message: result.error || "Failed to send to pane" });
@@ -249,13 +249,31 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails }: { r
       }
     }
 
-    // Go to last pane
+    // Go to last pane (or best-guess based on cwd)
     if (input === "g") {
-      if (lastPane === null) {
-        setStatus({ type: "error", message: "No pane selected yet. Use 0-9 to send cd first." });
+      const selected = sortedWorktrees[selectedIndex];
+      if (!selected) {
         return;
       }
-      const result = selectPane(lastPane);
+
+      let targetPane: number | undefined = paneHistory[selected.path];
+
+      // If no history for this worktree, try to find a pane by matching cwd
+      if (targetPane === undefined) {
+        const matchingPanes = findPanesWithPath(selected.path);
+        if (matchingPanes.length === 1) {
+          targetPane = matchingPanes[0].index;
+          setPaneHistory((prev) => ({ ...prev, [selected.path]: targetPane! }));
+        } else if (matchingPanes.length === 0) {
+          setStatus({ type: "error", message: "No pane found. Use 0-9 to send cd first." });
+          return;
+        } else {
+          setStatus({ type: "error", message: `Multiple panes found (${matchingPanes.map(p => p.index).join(", ")})` });
+          return;
+        }
+      }
+
+      const result = selectPane(targetPane);
       if (!result.success) {
         setStatus({ type: "error", message: result.error || "Failed to go to pane" });
       }

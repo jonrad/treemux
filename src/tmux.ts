@@ -5,6 +5,10 @@ export interface TmuxPane {
   id: string;
 }
 
+export interface TmuxPaneWithCwd extends TmuxPane {
+  cwd: string;
+}
+
 /**
  * Check if we're running inside tmux
  */
@@ -38,6 +42,40 @@ export function getPanesInCurrentWindow(): TmuxPane[] {
       const [indexStr, id] = line.split(" ");
       return { index: parseInt(indexStr, 10), id };
     });
+}
+
+/**
+ * Get all panes in the current window with their current working directories
+ */
+export function getPanesWithCwd(): TmuxPaneWithCwd[] {
+  const output = execSync(
+    "tmux list-panes -F '#{pane_index} #{pane_id} #{pane_current_path}'",
+    { encoding: "utf-8" }
+  );
+
+  return output
+    .trim()
+    .split("\n")
+    .filter((line) => line)
+    .map((line) => {
+      const parts = line.split(" ");
+      const index = parseInt(parts[0], 10);
+      const id = parts[1];
+      const cwd = parts.slice(2).join(" "); // Handle paths with spaces
+      return { index, id, cwd };
+    });
+}
+
+/**
+ * Find panes whose cwd matches a given path, excluding the current pane
+ */
+export function findPanesWithPath(path: string): TmuxPaneWithCwd[] {
+  const panes = getPanesWithCwd();
+  const currentPaneIndex = getCurrentPaneIndex();
+
+  return panes.filter(
+    (pane) => pane.cwd === path && pane.index !== currentPaneIndex
+  );
 }
 
 /**
