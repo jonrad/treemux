@@ -9,6 +9,18 @@ export interface TmuxPaneWithCwd extends TmuxPane {
   cwd: string;
 }
 
+export interface TmuxPaneWithProcess extends TmuxPane {
+  cwd: string;
+  command: string;
+  pid: number;
+}
+
+export interface ClaudeSession {
+  paneIndex: number;
+  paneId: string;
+  cwd: string;
+}
+
 /**
  * Check if we're running inside tmux
  */
@@ -17,7 +29,17 @@ export function isInTmux(): boolean {
 }
 
 /**
+ * Get the current pane ID from TMUX_PANE environment variable
+ * This is more reliable than using tmux display-message which shows the active pane
+ */
+export function getCurrentPaneId(): string | null {
+  return process.env.TMUX_PANE || null;
+}
+
+/**
  * Get the current pane index
+ * Note: This returns the *active* pane index, not necessarily the pane where this code is running.
+ * Use getCurrentPaneId() for the pane where this process started.
  */
 export function getCurrentPaneIndex(): number {
   const output = execSync("tmux display-message -p '#{pane_index}'", {
@@ -71,10 +93,10 @@ export function getPanesWithCwd(): TmuxPaneWithCwd[] {
  */
 export function findPanesWithPath(path: string): TmuxPaneWithCwd[] {
   const panes = getPanesWithCwd();
-  const currentPaneIndex = getCurrentPaneIndex();
+  const currentPaneId = getCurrentPaneId();
 
   return panes.filter(
-    (pane) => pane.cwd === path && pane.index !== currentPaneIndex
+    (pane) => pane.cwd === path && (!currentPaneId || pane.id !== currentPaneId)
   );
 }
 
@@ -287,4 +309,150 @@ export function togglePaneWidth(previousWidth: number | null): TogglePaneWidthRe
   } catch {
     return { success: false, error: "Failed to toggle pane width" };
   }
+}
+
+/**
+ * Get all panes in the current window with process info
+ */
+export function getPanesWithProcessInfo(): TmuxPaneWithProcess[] {
+  if (!isInTmux()) {
+    return [];
+  }
+
+  try {
+    const output = execSync(
+      "tmux list-panes -F '#{pane_index} #{pane_id} #{pane_current_command} #{pane_pid} #{pane_current_path}'",
+      { encoding: "utf-8" }
+    );
+
+    return output
+      .trim()
+      .split("\n")
+      .filter((line) => line)
+      .map((line) => {
+        const parts = line.split(" ");
+        const index = parseInt(parts[0], 10);
+        const id = parts[1];
+        const command = parts[2];
+        const pid = parseInt(parts[3], 10);
+        const cwd = parts.slice(4).join(" "); // Handle paths with spaces
+        return { index, id, command, pid, cwd };
+      });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check if a command line args string looks like Claude Code
+ */
+function isClaudeCommand(args: string): boolean {
+  const argsLower = args.toLowerCase();
+
+  // Check for common Claude Code signatures in the command line
+  if (
+    argsLower.includes("@anthropic/claude-code") ||
+    argsLower.includes("claude-code")
+  ) {
+    return true;
+  }
+
+  // Match standalone "claude" command (not part of another word like "claudette")
+  // Matches: "claude", "/usr/bin/claude", "claude --flag", etc.
+  if (/(?:^|\/|\s)claude(?:\s|$)/.test(argsLower)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a process (or any of its descendants) is a Claude Code session.
+ * Works on both Linux and macOS by using ps commands.
+ */
+function isClaudeProcessTree(rootPid: number): boolean {
+  try {
+    // Get all processes with their ppid and args
+    // This works on both Linux and macOS
+    const psOutput = execSync("ps -eo pid,ppid,args 2>/dev/null", {
+      encoding: "utf-8",
+    });
+
+    const lines = psOutput.trim().split("\n").slice(1); // Skip header
+    const processes = new Map<number, { ppid: number; args: string }>();
+
+    for (const line of lines) {
+      const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/);
+      if (match) {
+        const pid = parseInt(match[1], 10);
+        const ppid = parseInt(match[2], 10);
+        const args = match[3];
+        processes.set(pid, { ppid, args });
+      }
+    }
+
+    // First check the root process itself
+    const rootProc = processes.get(rootPid);
+    if (rootProc && isClaudeCommand(rootProc.args)) {
+      return true;
+    }
+
+    // Find all descendants of rootPid using BFS
+    const descendants: number[] = [];
+    const queue = [rootPid];
+
+    while (queue.length > 0) {
+      const parentPid = queue.shift()!;
+      for (const [pid, info] of processes) {
+        if (info.ppid === parentPid && !descendants.includes(pid)) {
+          descendants.push(pid);
+          queue.push(pid);
+        }
+      }
+    }
+
+    // Check if any descendant is running Claude
+    for (const pid of descendants) {
+      const proc = processes.get(pid);
+      if (proc && isClaudeCommand(proc.args)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find panes running Claude Code by walking the process tree from each pane's shell.
+ * Works cross-platform (Linux and macOS).
+ */
+export function getClaudeSessions(): ClaudeSession[] {
+  if (!isInTmux()) {
+    return [];
+  }
+
+  const panes = getPanesWithProcessInfo();
+  const currentPaneId = getCurrentPaneId();
+  const sessions: ClaudeSession[] = [];
+
+  for (const pane of panes) {
+    // Skip current pane (where TreeMux is running)
+    if (currentPaneId && pane.id === currentPaneId) {
+      continue;
+    }
+
+    // Walk the process tree from the shell to find Claude
+    if (pane.pid > 0 && isClaudeProcessTree(pane.pid)) {
+      sessions.push({
+        paneIndex: pane.index,
+        paneId: pane.id,
+        cwd: pane.cwd,
+      });
+    }
+  }
+
+  return sessions;
 }

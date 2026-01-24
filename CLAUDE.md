@@ -19,6 +19,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink. Features a 
 - `-s, --sort <order>` - Sort order: recent or branch (default: recent)
 - `-d, --details` / `--no-details` - Show/hide git details (default: true)
 - `-t, --theme <name|path>` - Theme name or path to JSON file (default: cyberpunk)
+- `--snapshot` - Render once and exit (non-interactive mode, bypasses tmux check)
 
 All CLI options (except `--config`) can also be specified in a config file. CLI args override config file values.
 
@@ -68,10 +69,15 @@ Custom themes can be added as JSON files in the `themes/` directory. See existin
 - `src/index.tsx` - React/Ink UI components
 - `src/theme.ts` - Theme system (types, built-in themes, loading)
 - `src/git.ts` - Git backend (worktree listing)
-- `src/tmux.ts` - Tmux integration (pane detection, send-keys)
+- `src/tmux.ts` - Tmux integration (pane detection, send-keys, Claude session detection)
 - `themes/` - Custom theme JSON files
 - `dist/` - Compiled output
 - `.worktrees/` - Worktree management scripts (source these, don't execute directly)
+
+## Features
+
+### Claude Code Sessions
+The app automatically detects and displays Claude Code sessions running in other tmux panes. The "CLAUDE SESSIONS" section appears below the branches list, showing the pane number and working directory of each active Claude session.
 
 ## References
 

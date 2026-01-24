@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
-import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth } from "./tmux.js";
+import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth, getClaudeSessions, ClaudeSession } from "./tmux.js";
 import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -224,6 +224,48 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
   );
 }
 
+function ClaudeSessionItem({ session }: { session: ClaudeSession }) {
+  const theme = useTheme();
+  // Shorten the cwd for display
+  const shortCwd = session.cwd.split("/").slice(-2).join("/");
+  return (
+    <Box>
+      <Text color={theme.colors.accent}>  </Text>
+      <Text color={theme.colors.secondary}>pane </Text>
+      <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
+      <Text color={theme.colors.textMuted}> → </Text>
+      <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
+    </Box>
+  );
+}
+
+function ClaudeSessionsSection({ sessions }: { sessions: ClaudeSession[] }) {
+  const theme = useTheme();
+
+  return (
+    <Box flexDirection="column" marginTop={1} paddingX={1}>
+      <Box marginBottom={1}>
+        <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
+        <Text color={theme.colors.textMuted}>CLAUDE SESSIONS </Text>
+        <Text color={theme.colors.textHighlight}>({sessions.length})</Text>
+      </Box>
+      {sessions.length === 0 ? (
+        <Box paddingX={2}>
+          <Text color={theme.colors.textMuted}>{"░░░ "}</Text>
+          <Text color={theme.colors.textMuted} dimColor>No active sessions</Text>
+          <Text color={theme.colors.textMuted}>{" ░░░"}</Text>
+        </Box>
+      ) : (
+        <Box flexDirection="column">
+          {sessions.map((session) => (
+            <ClaudeSessionItem key={session.paneId} session={session} />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function MinimizedView({ height }: { height: number }) {
   const theme = useTheme();
   const text = "TREEMUX";
@@ -243,6 +285,113 @@ function MinimizedView({ height }: { height: number }) {
   );
 }
 
+function SnapshotView({ root, defaultSort, showDetails, theme }: {
+  root: string;
+  defaultSort: SortOrder;
+  showDetails: boolean;
+  theme: Theme;
+}) {
+  const { exit } = useApp();
+  const { stdout } = useStdout();
+  const worktrees = getWorktrees(root);
+  const sortedWorktrees = sortWorktrees(worktrees, defaultSort);
+  const [gitDetails, setGitDetails] = useState<Map<string, GitDetails>>(new Map());
+  const claudeSessions = getClaudeSessions();
+
+  const termWidth = stdout.columns || 80;
+  const termHeight = stdout.rows || 24;
+
+  // Fetch git details once
+  useEffect(() => {
+    if (showDetails && worktrees.length > 0) {
+      getAllWorktreeDetails(worktrees).then((details) => {
+        setGitDetails(details);
+        // Exit after rendering with details
+        setTimeout(() => exit(), 50);
+      });
+    } else {
+      // Exit immediately if no details needed
+      setTimeout(() => exit(), 50);
+    }
+  }, []);
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <Box
+        flexDirection="column"
+        width={termWidth}
+        height={termHeight}
+        paddingX={1}
+      >
+        {/* HEADER */}
+        <Header width={termWidth} />
+
+        {/* Decorative divider after header */}
+        <Box marginY={1} justifyContent="center">
+          <Text color={theme.colors.secondary}>{theme.icons.dividerLeft}</Text>
+          <Divider width={Math.min(50, termWidth - 4)} />
+          <Text color={theme.colors.secondary}>{theme.icons.dividerRight}</Text>
+        </Box>
+
+        {/* CONTENT AREA */}
+        <Box flexDirection="column" paddingX={1}>
+          {/* Section header */}
+          <Box marginBottom={1}>
+            <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
+            <Text color={theme.colors.textMuted}>BRANCHES </Text>
+            <Text color={theme.colors.textHighlight}>({sortedWorktrees.length})</Text>
+            <SortIndicator sortOrder={defaultSort} />
+          </Box>
+
+          {/* Worktree list */}
+          {sortedWorktrees.length === 0 ? (
+            <Box paddingX={2}>
+              <Text color={theme.colors.textMuted}>{"░░░ "}</Text>
+              <Text color={theme.colors.warning} dimColor>No worktrees found</Text>
+              <Text color={theme.colors.textMuted}>{" ░░░"}</Text>
+            </Box>
+          ) : (
+            <Box flexDirection="column">
+              {sortedWorktrees.map((wt, index) => (
+                <WorktreeItem
+                  key={wt.path}
+                  worktree={wt}
+                  isSelected={index === 0}
+                  details={showDetails ? gitDetails.get(wt.path) : undefined}
+                />
+              ))}
+            </Box>
+          )}
+
+          {/* Claude Sessions section */}
+          <ClaudeSessionsSection sessions={claudeSessions} />
+        </Box>
+
+        {/* SPACER */}
+        <Box flexGrow={1} />
+
+        {/* STATUS BAR */}
+        <Box flexDirection="column">
+          {/* Status message */}
+          <Box height={1} paddingX={1}>
+            <Text color={theme.colors.textMuted}>snapshot mode</Text>
+          </Box>
+
+          {/* Bottom divider */}
+          <Box justifyContent="center">
+            <Text color={theme.colors.border}>{"─".repeat(Math.min(60, termWidth - 4))}</Text>
+          </Box>
+
+          {/* Help bar */}
+          <Box paddingX={1} paddingY={0}>
+            <HelpBar mode="list" sortOrder={defaultSort} />
+          </Box>
+        </Box>
+      </Box>
+    </ThemeContext.Provider>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLI SETUP
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -256,9 +405,10 @@ program
   .option("-d, --details", "show git details (commits ahead/behind, modified files)")
   .option("--no-details", "hide git details")
   .option("-t, --theme <name|path>", `theme name or path to JSON (built-in: ${Object.keys(BUILT_IN_THEMES).join(", ")})`)
+  .option("--snapshot", "render once and exit (non-interactive mode, bypasses tmux check)")
   .parse();
 
-const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string }>();
+const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; snapshot?: boolean }>();
 
 // Load config file (from --config path or searches package.json, .treemuxrc, treemux.config.js, etc.)
 const explorer = cosmiconfigSync("treemux");
@@ -287,7 +437,9 @@ const options = {
   theme: cliOptions.theme ?? fileConfig.theme ?? "cyberpunk",
 };
 
-if (!process.env.TMUX) {
+const snapshotMode = cliOptions.snapshot ?? false;
+
+if (!snapshotMode && !process.env.TMUX) {
   console.error("Error: TreeMux must be run inside a tmux session.");
   console.error("Start tmux first with: tmux");
   process.exit(1);
@@ -338,6 +490,9 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   // Theme picker state
   const [availableThemes] = useState<ThemeOption[]>(() => getAvailableThemes());
   const [themeIndex, setThemeIndex] = useState(0);
+
+  // Claude sessions state
+  const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>(() => getClaudeSessions());
 
   const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
 
@@ -432,6 +587,20 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 
     return () => clearInterval(interval);
   }, [showDetails, worktrees, pollInterval]);
+
+  // Poll for Claude sessions
+  useEffect(() => {
+    if (pollInterval <= 0) return;
+
+    // Use a slightly longer interval for session detection (minimum 1s)
+    const sessionInterval = Math.max(pollInterval, 1000);
+
+    const interval = setInterval(() => {
+      setClaudeSessions(getClaudeSessions());
+    }, sessionInterval);
+
+    return () => clearInterval(interval);
+  }, [pollInterval]);
 
   useInput((input, key) => {
     // Clear status on any input
@@ -706,6 +875,9 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
               ))}
             </Box>
           )}
+
+          {/* Claude Sessions section */}
+          <ClaudeSessionsSection sessions={claudeSessions} />
         </Box>
       )}
 
@@ -759,4 +931,16 @@ function Root({ initialTheme, showDetails }: { initialTheme: Theme; showDetails:
 // RENDER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-render(<Root initialTheme={theme} showDetails={options.details} />);
+if (snapshotMode) {
+  const instance = render(
+    <SnapshotView
+      root={root}
+      defaultSort={options.sort}
+      showDetails={options.details}
+      theme={theme}
+    />
+  );
+  instance.waitUntilExit();
+} else {
+  render(<Root initialTheme={theme} showDetails={options.details} />);
+}
