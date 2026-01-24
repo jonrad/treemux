@@ -249,11 +249,18 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
   const shortCwd = session.cwd.split("/").slice(-2).join("/");
   const indicator = isSelected ? theme.icons.selected : " ";
 
+  // Status indicator: waiting = yellow circle, working = green spinner-like, undefined = no indicator
+  const hasStatus = session.waitingForInput !== undefined;
+  const statusIcon = session.waitingForInput ? "●" : "◐";
+  const statusColor = session.waitingForInput ? theme.colors.warning : theme.colors.success;
+  const statusPadding = hasStatus ? "      " : "    ";
+
   if (isSelected) {
     return (
       <Box flexDirection="column">
         <Box>
           <Text color={theme.colors.selection} bold>{indicator} </Text>
+          {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
           <Text color={theme.colors.selectionText} bold inverse>{` ${shortCwd} `}</Text>
           <Text color={theme.colors.textMuted}> (</Text>
           <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
@@ -261,7 +268,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
         </Box>
         {session.summary && (
           <Box>
-            <Text color={theme.colors.textMuted}>    </Text>
+            <Text color={theme.colors.textMuted}>{statusPadding}</Text>
             <Text color={theme.colors.accent}>{session.summary}</Text>
           </Box>
         )}
@@ -273,6 +280,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
     <Box flexDirection="column">
       <Box>
         <Text color={theme.colors.textMuted}>{indicator} </Text>
+        {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
         <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
         <Text color={theme.colors.primary}>{session.paneIndex}</Text>
@@ -280,7 +288,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
       </Box>
       {session.summary && (
         <Box>
-          <Text color={theme.colors.textMuted}>    </Text>
+          <Text color={theme.colors.textMuted}>{statusPadding}</Text>
           <Text color={theme.colors.textMuted} dimColor>{session.summary}</Text>
         </Box>
       )}
@@ -292,7 +300,7 @@ function ClaudeSessionsSection({ sessions, selectedIndex, isFocused }: { session
   const theme = useTheme();
 
   return (
-    <Box flexDirection="column" marginTop={1} paddingX={1}>
+    <Box flexDirection="column" marginTop={1}>
       <Box marginBottom={1}>
         <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
         <Text color={isFocused ? theme.colors.primary : theme.colors.textMuted}>CLAUDE SESSIONS </Text>

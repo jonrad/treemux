@@ -104,6 +104,19 @@ The app automatically detects and displays Claude Code sessions running in other
 - Press `g` or `Enter` to jump to a session's pane
 - Detection uses cross-platform process tree walking (works on Linux and macOS)
 
+### Session Status Plugin (Optional)
+Install the TreeMux plugin to show session status indicators:
+
+```bash
+claude --plugin-dir /path/to/treemux/plugin
+```
+
+With the plugin installed:
+- **● (yellow)** - Session waiting for user input
+- **◐ (green)** - Session actively working
+
+See `plugin/README.md` for details.
+
 ## References
 
 - `docs/worktree.md` - Git worktree command reference

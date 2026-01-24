@@ -1,0 +1,8 @@
+{
+  "name": "treemux-session-tracker",
+  "description": "Tracks Claude Code session state for TreeMux integration",
+  "version": "1.0.0",
+  "author": {
+    "name": "TreeMux"
+  }
+}

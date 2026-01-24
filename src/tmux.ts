@@ -23,6 +23,7 @@ export interface ClaudeSession {
   paneId: string;
   cwd: string;
   summary?: string;
+  waitingForInput?: boolean;
 }
 
 /**
@@ -352,8 +353,45 @@ interface TranscriptEntry {
   cwd?: string;
   message?: {
     role: string;
-    content: string | Array<{ type: string; text: string }>;
+    content: string | Array<{ type: string; text?: string }>;
   };
+}
+
+interface PluginSessionState {
+  session_id: string;
+  cwd: string;
+  state: "start" | "working" | "waiting";
+  pane_id: string;
+  timestamp: string;
+}
+
+/**
+ * Read session states from the TreeMux plugin state files.
+ * Returns a map of pane_id -> state ("working" | "waiting").
+ */
+function getPluginSessionStates(): Map<string, string> {
+  const states = new Map<string, string>();
+
+  try {
+    const stateDir = join(homedir(), ".claude", "treemux");
+    const files = readdirSync(stateDir).filter(f => f.endsWith(".json"));
+
+    for (const file of files) {
+      try {
+        const content = readFileSync(join(stateDir, file), "utf-8");
+        const state: PluginSessionState = JSON.parse(content);
+        if (state.pane_id && state.state) {
+          states.set(state.pane_id, state.state);
+        }
+      } catch {
+        // Skip malformed files
+      }
+    }
+  } catch {
+    // State directory doesn't exist (plugin not installed)
+  }
+
+  return states;
 }
 
 /**
@@ -383,7 +421,6 @@ function getClaudeTranscriptSummaries(): Map<string, string> {
             const stat = statSync(filePath);
             if (stat.mtimeMs < recentThreshold) continue;
 
-            // Read the file and find the first user message with actual content
             const content = readFileSync(filePath, "utf-8");
             const lines = content.split("\n").filter(l => l.trim());
 
@@ -394,47 +431,38 @@ function getClaudeTranscriptSummaries(): Map<string, string> {
               try {
                 const entry: TranscriptEntry = JSON.parse(line);
 
-                // Get cwd from any entry that has it
                 if (entry.cwd && !cwd) {
                   cwd = entry.cwd;
                 }
 
-                // Find first user message with meaningful content
                 if (entry.type === "user" && entry.message && !summary) {
-                  const content = entry.message.content;
+                  const msgContent = entry.message.content;
                   let text = "";
 
-                  if (typeof content === "string") {
-                    text = content;
-                  } else if (Array.isArray(content)) {
-                    text = content
+                  if (typeof msgContent === "string") {
+                    text = msgContent;
+                  } else if (Array.isArray(msgContent)) {
+                    text = msgContent
                       .filter(c => c.type === "text")
-                      .map(c => c.text)
+                      .map(c => c.text || "")
                       .join(" ");
                   }
 
-                  // Skip empty or null content
                   if (!text || text === "null") continue;
-
-                  // Skip system-generated messages without useful content
                   if (text.includes("<local-command-caveat>")) continue;
                   if (text.includes("<local-command-stdout>")) continue;
                   if (text.match(/^<command-name>.*<\/command-name>\s*$/)) continue;
 
-                  // Extract from command-args if present
                   const argsMatch = text.match(/<command-args>\s*([\s\S]*?)<\/command-args>/);
                   if (argsMatch) {
                     text = argsMatch[1].trim();
-                    // Skip if args are empty
                     if (!text) continue;
                   } else if (text.includes("<command-")) {
-                    // Has command tags but no args we want
                     continue;
                   }
 
-                  // Clean up and truncate
-                  text = text.replace(/^#.*\n/gm, "").trim(); // Remove markdown headers
-                  text = text.replace(/^\* /gm, "").trim(); // Remove bullet points
+                  text = text.replace(/^#.*\n/gm, "").trim();
+                  text = text.replace(/^\* /gm, "").trim();
                   const firstLine = text.split("\n")[0].trim();
                   if (!firstLine) continue;
 
@@ -566,6 +594,7 @@ export function getClaudeSessions(): ClaudeSession[] {
   const panes = getPanesWithProcessInfo();
   const currentPaneId = getCurrentPaneId();
   const summaries = getClaudeTranscriptSummaries();
+  const pluginStates = getPluginSessionStates();
   const sessions: ClaudeSession[] = [];
 
   for (const pane of panes) {
@@ -576,11 +605,14 @@ export function getClaudeSessions(): ClaudeSession[] {
 
     // Walk the process tree from the shell to find Claude
     if (pane.pid > 0 && isClaudeProcessTree(pane.pid)) {
+      const state = pluginStates.get(pane.id);
       sessions.push({
         paneIndex: pane.index,
         paneId: pane.id,
         cwd: pane.cwd,
         summary: summaries.get(pane.cwd),
+        // Only set waitingForInput if plugin is providing state
+        waitingForInput: state === "waiting" ? true : state === "working" ? false : undefined,
       });
     }
   }
