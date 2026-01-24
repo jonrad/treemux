@@ -17,7 +17,7 @@
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=treemux-claude-credentials,target=/home/node/.claude,type=volume"
+    "source=claude-code-shared,target=/home/node/.claude-shared,type=volume"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -26,5 +26,5 @@
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "pnpm install"
+  "postCreateCommand": "bash .devcontainer/setup.sh"
 }
