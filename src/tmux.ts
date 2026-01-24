@@ -24,8 +24,11 @@ export interface ClaudeSession {
   paneId: string;
   cwd: string;
   windowName: string;
+  pid: number;
   summary?: string;
   waitingForInput?: boolean;
+  hostname?: string;
+  isDevcontainer?: boolean;
 }
 
 /**
@@ -366,6 +369,8 @@ interface PluginSessionState {
   state: "start" | "working" | "waiting";
   pane_id: string;
   timestamp: string;
+  hostname?: string;
+  is_devcontainer?: boolean;
 }
 
 /**
@@ -395,6 +400,86 @@ function getPluginSessionStates(): Map<string, string> {
   }
 
   return states;
+}
+
+/**
+ * Convert a tmux pane ID (e.g., "%3") to a pane index by looking up current panes.
+ * Returns undefined if pane not found.
+ */
+function paneIdToIndex(paneId: string): number | undefined {
+  if (!isInTmux()) return undefined;
+
+  try {
+    const panes = getPanesInCurrentWindow();
+    const pane = panes.find(p => p.id === paneId);
+    return pane?.index;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get devcontainer sessions from plugin state files.
+ * These are sessions running inside devcontainers that have HOST_TMUX_PANE set.
+ */
+function getDevcontainerSessions(): ClaudeSession[] {
+  const sessions: ClaudeSession[] = [];
+  const currentPaneId = getCurrentPaneId();
+  const summaries = getClaudeTranscriptSummaries();
+
+  // Stale threshold: 2 minutes
+  const staleThreshold = Date.now() - 2 * 60 * 1000;
+
+  try {
+    const stateDir = join(homedir(), ".claude", "treemux");
+    const files = readdirSync(stateDir).filter(f => f.endsWith(".json"));
+
+    for (const file of files) {
+      try {
+        const content = readFileSync(join(stateDir, file), "utf-8");
+        const state: PluginSessionState = JSON.parse(content);
+
+        // Only process devcontainer sessions
+        if (!state.is_devcontainer) continue;
+
+        // Skip if no valid pane_id
+        if (!state.pane_id) continue;
+
+        // Skip stale sessions (timestamp > 2 min old)
+        const timestamp = new Date(state.timestamp).getTime();
+        if (isNaN(timestamp) || timestamp < staleThreshold) continue;
+
+        // Skip current pane
+        if (currentPaneId && state.pane_id === currentPaneId) continue;
+
+        // Convert pane_id to pane index
+        const paneIndex = paneIdToIndex(state.pane_id);
+        if (paneIndex === undefined) continue;
+
+        // Get pane info for window name
+        const panes = getPanesWithProcessInfo();
+        const paneInfo = panes.find(p => p.id === state.pane_id);
+
+        sessions.push({
+          paneIndex,
+          paneId: state.pane_id,
+          cwd: state.cwd,
+          windowName: paneInfo?.windowName || "devcontainer",
+          pid: paneInfo?.pid || 0,
+          summary: summaries.get(state.cwd),
+          waitingForInput: state.state === "waiting" ? true : state.state === "working" ? false : undefined,
+          hostname: state.hostname,
+          isDevcontainer: true,
+        });
+      } catch {
+        // Skip malformed files
+      }
+    }
+  } catch {
+    // State directory doesn't exist
+  }
+
+  return sessions;
 }
 
 /**
@@ -588,6 +673,7 @@ function isClaudeProcessTree(rootPid: number): boolean {
 /**
  * Find panes running Claude Code by walking the process tree from each pane's shell.
  * Works cross-platform (Linux and macOS).
+ * Also includes devcontainer sessions detected via plugin state files.
  */
 export function getClaudeSessions(): ClaudeSession[] {
   if (!isInTmux()) {
@@ -599,7 +685,9 @@ export function getClaudeSessions(): ClaudeSession[] {
   const summaries = getClaudeTranscriptSummaries();
   const pluginStates = getPluginSessionStates();
   const sessions: ClaudeSession[] = [];
+  const seenPaneIds = new Set<string>();
 
+  // First, get local sessions via process tree (existing logic)
   for (const pane of panes) {
     // Skip current pane (where TreeMux is running)
     if (currentPaneId && pane.id === currentPaneId) {
@@ -614,10 +702,22 @@ export function getClaudeSessions(): ClaudeSession[] {
         paneId: pane.id,
         cwd: pane.cwd,
         windowName: pane.windowName,
+        pid: pane.pid,
         summary: summaries.get(pane.cwd),
         // Only set waitingForInput if plugin is providing state
         waitingForInput: state === "waiting" ? true : state === "working" ? false : undefined,
       });
+      seenPaneIds.add(pane.id);
+    }
+  }
+
+  // Then, get devcontainer sessions from plugin state files
+  const devcontainerSessions = getDevcontainerSessions();
+  for (const session of devcontainerSessions) {
+    // Avoid duplicates (if somehow detected both ways)
+    if (!seenPaneIds.has(session.paneId)) {
+      sessions.push(session);
+      seenPaneIds.add(session.paneId);
     }
   }
 

@@ -243,7 +243,7 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
   );
 }
 
-function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; isSelected: boolean }) {
+function ClaudeSessionItem({ session, isSelected, debugMode }: { session: ClaudeSession; isSelected: boolean; debugMode?: boolean }) {
   const theme = useTheme();
   // Shorten the cwd for display (last 2 path components)
   const shortCwd = session.cwd.split("/").slice(-2).join("/");
@@ -254,6 +254,11 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
   const statusIcon = session.waitingForInput ? "●" : "◐";
   const statusColor = session.waitingForInput ? theme.colors.warning : theme.colors.success;
   const statusPadding = hasStatus ? "      " : "    ";
+
+  // Devcontainer indicator
+  const devcontainerBadge = session.isDevcontainer ? (
+    <Text color={theme.colors.accent}> [DC]</Text>
+  ) : null;
 
   if (isSelected) {
     return (
@@ -266,6 +271,10 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
           <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
           <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
           <Text color={theme.colors.textMuted}>)</Text>
+          {devcontainerBadge}
+          {debugMode && (
+            <Text color={theme.colors.textMuted}> pid:{session.pid}{session.hostname ? ` @${session.hostname}` : ""}</Text>
+          )}
         </Box>
         {session.summary && (
           <Box>
@@ -287,6 +296,10 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
         <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
         <Text color={theme.colors.primary}>{session.paneIndex}</Text>
         <Text color={theme.colors.textMuted}>)</Text>
+        {devcontainerBadge}
+        {debugMode && (
+          <Text color={theme.colors.textMuted}> pid:{session.pid}{session.hostname ? ` @${session.hostname}` : ""}</Text>
+        )}
       </Box>
       {session.summary && (
         <Box>
@@ -298,7 +311,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
   );
 }
 
-function ClaudeSessionsSection({ sessions, selectedIndex, isFocused }: { sessions: ClaudeSession[]; selectedIndex: number; isFocused: boolean }) {
+function ClaudeSessionsSection({ sessions, selectedIndex, isFocused, debugMode }: { sessions: ClaudeSession[]; selectedIndex: number; isFocused: boolean; debugMode?: boolean }) {
   const theme = useTheme();
 
   return (
@@ -321,6 +334,7 @@ function ClaudeSessionsSection({ sessions, selectedIndex, isFocused }: { session
               key={session.paneId}
               session={session}
               isSelected={isFocused && index === selectedIndex}
+              debugMode={debugMode}
             />
           ))}
         </Box>
@@ -558,6 +572,9 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>(() => getClaudeSessions());
   const [focusSection, setFocusSection] = useState<FocusSection>("branches");
   const [sessionIndex, setSessionIndex] = useState(0);
+
+  // Debug mode
+  const [debugMode, setDebugMode] = useState(false);
 
   const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
 
@@ -797,6 +814,11 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       return;
     }
 
+    if (input === "d") {
+      setDebugMode((prev) => !prev);
+      return;
+    }
+
     // Branch-only commands
     if (focusSection === "branches") {
       if (input === "a") {
@@ -1005,6 +1027,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
             sessions={claudeSessions}
             selectedIndex={sessionIndex}
             isFocused={focusSection === "sessions"}
+            debugMode={debugMode}
           />
         </Box>
       )}
