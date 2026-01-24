@@ -15,7 +15,16 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 # Get tmux pane ID from environment (e.g., %0, %1, etc.)
-PANE_ID="${TMUX_PANE:-}"
+# Use host pane if available (devcontainer), else inner pane
+if [ "$DEVCONTAINER" = "true" ] && [ -n "$HOST_TMUX_PANE" ]; then
+  PANE_ID="$HOST_TMUX_PANE"
+else
+  PANE_ID="${TMUX_PANE:-}"
+fi
+
+# Detect if running in devcontainer and capture hostname
+IS_DEVCONTAINER="${DEVCONTAINER:-false}"
+HOSTNAME_VAL=$(hostname)
 
 # Fallback if no session_id
 if [ -z "$SESSION_ID" ]; then
@@ -36,12 +45,16 @@ case "$STATE" in
       --arg state "$STATE" \
       --arg pane_id "$PANE_ID" \
       --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --arg hostname "$HOSTNAME_VAL" \
+      --argjson is_devcontainer "$([ "$IS_DEVCONTAINER" = "true" ] && echo true || echo false)" \
       '{
         session_id: $session_id,
         cwd: $cwd,
         state: $state,
         pane_id: $pane_id,
-        timestamp: $timestamp
+        timestamp: $timestamp,
+        hostname: $hostname,
+        is_devcontainer: $is_devcontainer
       }' > "$STATE_FILE"
     ;;
   end)
