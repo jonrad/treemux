@@ -22,4 +22,4 @@ fi
 # Attach to existing session or create new one with claude
 exec devcontainer exec --workspace-folder "$WORKSPACE_DIR" \
     tmux new-session -A -s "$WORKTREE_NAME" \
-    "claude --dangerously-skip-permissions --allow-dangerously-skip-permissions"
+    "claude --dangerously-skip-permissions --allow-dangerously-skip-permissions --plugin-dir plugin"
