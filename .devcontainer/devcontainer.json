@@ -1,5 +1,5 @@
 {
-  "name": "Claude Code Sandbox",
+  "name": "TreeMux Dev",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
@@ -13,15 +13,12 @@
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW"
   ],
-  "customizations": {
-  },
+  "customizations": {},
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-credentials-shared,target=/home/node/.claude-creds,type=volume"
+    "source=treemux-claude-credentials,target=/home/node/.claude,type=volume"
   ],
-  "postStartCommand": "[ -f /home/node/.claude-creds/.credentials.json ] && mkdir -p /home/node/.claude && cp /home/node/.claude-creds/.credentials.json /home/node/.claude/ || true",
-  "postAttachCommand": "[ -f /home/node/.claude/.credentials.json ] && cp /home/node/.claude/.credentials.json /home/node/.claude-creds/ || true",
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
@@ -29,5 +26,5 @@
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "waitFor": "postStartCommand"
+  "postCreateCommand": "pnpm install"
 }
