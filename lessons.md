@@ -15,3 +15,7 @@
 - Tmux is available but session management could be improved
 - Creating panes for testing works but cleanup is manual
 - Could benefit from predefined layouts or helper scripts
+
+### 4. Better git integration
+- main .git is readonly
+- But copying and pasting git commands is annoying
