@@ -44,14 +44,23 @@ Example `.treemuxrc.json`:
 
 ## Keybindings
 
-- `↑/k` - Move up
-- `↓/j` - Move down
+### Navigation
+- `↑/k` - Move up (seamlessly moves between branches and sessions)
+- `↓/j` - Move down (seamlessly moves between branches and sessions)
+- `Tab` - Switch focus between branches and sessions sections
+
+### Branch Commands (when branches focused)
 - `a` - Add new worktree (prompts for name)
 - `r` - Remove selected worktree
 - `s` - Toggle sort order (recent/branch)
-- `t` - Open theme picker
 - `0-9` - Send cd to tmux pane (remembered per worktree)
 - `g` - Go to pane for selected worktree (uses history or detects by cwd)
+
+### Session Commands (when sessions focused)
+- `g` or `Enter` - Go to selected session's pane
+
+### Global
+- `t` - Open theme picker
 - `q` - Show tmux pane numbers
 - `<` - Move current pane to leftmost (full height, preserves width)
 - `>` - Move current pane to rightmost (full height, preserves width)
@@ -76,8 +85,24 @@ Custom themes can be added as JSON files in the `themes/` directory. See existin
 
 ## Features
 
+### Snapshot Mode (--snapshot)
+Non-interactive mode that renders the UI once and exits. Useful for:
+- **AI validation**: Run `node dist/index.js --snapshot --root /path` to verify UI changes without interaction
+- **Screenshots**: Capture the current state for documentation
+- **Testing outside tmux**: Bypasses the tmux requirement
+
+Example:
+```bash
+node dist/index.js --snapshot --root /workspace
+```
+
 ### Claude Code Sessions
-The app automatically detects and displays Claude Code sessions running in other tmux panes. The "CLAUDE SESSIONS" section appears below the branches list, showing the pane number and working directory of each active Claude session.
+The app automatically detects and displays Claude Code sessions running in other tmux panes:
+- Shows pane number, working directory, and session summary
+- Summary extracted from first user message in transcript file (~/.claude/projects/)
+- Navigate to sessions using j/k (seamless with branches) or Tab to switch sections
+- Press `g` or `Enter` to jump to a session's pane
+- Detection uses cross-platform process tree walking (works on Linux and macOS)
 
 ## References
 

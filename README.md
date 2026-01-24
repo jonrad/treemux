@@ -61,11 +61,31 @@ pnpm start -- --root /path/to/repo --theme ocean
 ╭────────────────────────────╮╭────────────────────────────╮╭────────────────────────────╮
 │  ↑ k    move up            ││  a       add worktree      ││  0-9   cd to pane N        │
 │  ↓ j    move down          ││  r       remove worktree   ││  g     go to worktree pane │
-│                            ││  s       toggle sort       ││  q     show pane numbers   │
+│  Tab    switch section     ││  s       toggle sort       ││  q     show pane numbers   │
 │                            ││  t       theme picker      ││  < >   move pane left/right│
 ╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
                                     Ctrl+C to quit
 ```
+
+## 🤖 Claude Code Integration
+
+TreeMux automatically detects Claude Code sessions running in other tmux panes:
+
+- Sessions appear below the branches list with pane number and working directory
+- Shows a summary of what each session is working on (from transcript)
+- Navigate seamlessly with `j/k` - moves between branches and sessions
+- Press `g` or `Enter` to jump to a session's pane
+
+## 📸 Snapshot Mode
+
+For automation, testing, or AI-assisted development:
+
+```bash
+# Render UI once and exit (no interaction, bypasses tmux requirement)
+pnpm start -- --snapshot --root /path/to/repo
+```
+
+Useful for validating UI changes without manual interaction.
 
 ## 🎨 Themes
 
@@ -101,6 +121,7 @@ Custom themes go in `themes/` as JSON files.
 | `-s, --sort <order>` | Sort by `recent` or `branch` | `recent` |
 | `-d, --details` | Show git details | `true` |
 | `-t, --theme <name>` | Theme name or JSON path | `cyberpunk` |
+| `--snapshot` | Render once and exit (non-interactive) | *off* |
 
 ### Config File
 
