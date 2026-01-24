@@ -511,7 +511,7 @@ const options = {
   worktreesDir: cliOptions.worktreesDir ?? fileConfig.worktreesDir ?? ".worktrees",
   sort: (cliOptions.sort ?? fileConfig.sort ?? "recent") as SortOrder,
   details: cliOptions.details !== undefined ? cliOptions.details : detailsDefault,
-  theme: cliOptions.theme ?? fileConfig.theme ?? "cyberpunk",
+  theme: cliOptions.theme ?? fileConfig.theme ?? "forest",
 };
 
 const snapshotMode = cliOptions.snapshot ?? false;
