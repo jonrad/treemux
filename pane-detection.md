@@ -75,9 +75,21 @@ Process tree in pane 1:
 
 Both panes would be detected as Claude sessions.
 
+## Session Summaries
+
+For each detected Claude session, we also extract a summary from the transcript file:
+
+1. Find transcript files in `~/.claude/projects/*/` modified in last 5 minutes
+2. Match transcript to session by `cwd` field
+3. Extract first meaningful user message (skipping system-generated ones)
+4. Truncate to ~50 characters for display
+
+The summary helps identify what each Claude session is working on.
+
 ## Limitations
 
 - Only detects sessions in the **current tmux window**
 - Polling-based (1+ second delay)
 - Relies on "claude" appearing in the process args
 - Cannot detect Claude in other tmux sessions/windows
+- Summaries require transcript files to be accessible

@@ -1,4 +1,7 @@
 import { execSync } from "child_process";
+import { readdirSync, readFileSync, statSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
 export interface TmuxPane {
   index: number;
@@ -19,6 +22,7 @@ export interface ClaudeSession {
   paneIndex: number;
   paneId: string;
   cwd: string;
+  summary?: string;
 }
 
 /**
@@ -343,6 +347,131 @@ export function getPanesWithProcessInfo(): TmuxPaneWithProcess[] {
   }
 }
 
+interface TranscriptEntry {
+  type: string;
+  cwd?: string;
+  message?: {
+    role: string;
+    content: string | Array<{ type: string; text: string }>;
+  };
+}
+
+/**
+ * Find Claude transcript files and extract summaries for sessions by cwd.
+ * Returns a map of cwd -> summary (first user message).
+ */
+function getClaudeTranscriptSummaries(): Map<string, string> {
+  const summaries = new Map<string, string>();
+
+  try {
+    const claudeDir = join(homedir(), ".claude", "projects");
+    const projectDirs = readdirSync(claudeDir, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => join(claudeDir, d.name));
+
+    // Find recently modified transcript files (within last 5 minutes)
+    const recentThreshold = Date.now() - 5 * 60 * 1000;
+
+    for (const projectDir of projectDirs) {
+      try {
+        const files = readdirSync(projectDir)
+          .filter(f => f.endsWith(".jsonl") && !f.startsWith("agent-"));
+
+        for (const file of files) {
+          const filePath = join(projectDir, file);
+          try {
+            const stat = statSync(filePath);
+            if (stat.mtimeMs < recentThreshold) continue;
+
+            // Read the file and find the first user message with actual content
+            const content = readFileSync(filePath, "utf-8");
+            const lines = content.split("\n").filter(l => l.trim());
+
+            let cwd: string | undefined;
+            let summary: string | undefined;
+
+            for (const line of lines) {
+              try {
+                const entry: TranscriptEntry = JSON.parse(line);
+
+                // Get cwd from any entry that has it
+                if (entry.cwd && !cwd) {
+                  cwd = entry.cwd;
+                }
+
+                // Find first user message with meaningful content
+                if (entry.type === "user" && entry.message && !summary) {
+                  const content = entry.message.content;
+                  let text = "";
+
+                  if (typeof content === "string") {
+                    text = content;
+                  } else if (Array.isArray(content)) {
+                    text = content
+                      .filter(c => c.type === "text")
+                      .map(c => c.text)
+                      .join(" ");
+                  }
+
+                  // Skip empty or null content
+                  if (!text || text === "null") continue;
+
+                  // Skip system-generated messages without useful content
+                  if (text.includes("<local-command-caveat>")) continue;
+                  if (text.includes("<local-command-stdout>")) continue;
+                  if (text.match(/^<command-name>.*<\/command-name>\s*$/)) continue;
+
+                  // Extract from command-args if present
+                  const argsMatch = text.match(/<command-args>\s*([\s\S]*?)<\/command-args>/);
+                  if (argsMatch) {
+                    text = argsMatch[1].trim();
+                    // Skip if args are empty
+                    if (!text) continue;
+                  } else if (text.includes("<command-")) {
+                    // Has command tags but no args we want
+                    continue;
+                  }
+
+                  // Clean up and truncate
+                  text = text.replace(/^#.*\n/gm, "").trim(); // Remove markdown headers
+                  text = text.replace(/^\* /gm, "").trim(); // Remove bullet points
+                  const firstLine = text.split("\n")[0].trim();
+                  if (!firstLine) continue;
+
+                  text = firstLine;
+                  if (text.length > 50) {
+                    text = text.substring(0, 47) + "...";
+                  }
+
+                  if (text) {
+                    summary = text;
+                  }
+                }
+
+                if (cwd && summary) break;
+              } catch {
+                // Skip malformed lines
+              }
+            }
+
+            if (cwd && summary) {
+              summaries.set(cwd, summary);
+            }
+          } catch {
+            // Skip files we can't read
+          }
+        }
+      } catch {
+        // Skip directories we can't read
+      }
+    }
+  } catch {
+    // Claude directory doesn't exist or isn't readable
+  }
+
+  return summaries;
+}
+
 /**
  * Check if a command line args string looks like Claude Code
  */
@@ -436,6 +565,7 @@ export function getClaudeSessions(): ClaudeSession[] {
 
   const panes = getPanesWithProcessInfo();
   const currentPaneId = getCurrentPaneId();
+  const summaries = getClaudeTranscriptSummaries();
   const sessions: ClaudeSession[] = [];
 
   for (const pane of panes) {
@@ -450,6 +580,7 @@ export function getClaudeSessions(): ClaudeSession[] {
         paneIndex: pane.index,
         paneId: pane.id,
         cwd: pane.cwd,
+        summary: summaries.get(pane.cwd),
       });
     }
   }

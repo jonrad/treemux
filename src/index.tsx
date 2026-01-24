@@ -226,15 +226,23 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
 
 function ClaudeSessionItem({ session }: { session: ClaudeSession }) {
   const theme = useTheme();
-  // Shorten the cwd for display
+  // Shorten the cwd for display (last 2 path components)
   const shortCwd = session.cwd.split("/").slice(-2).join("/");
   return (
-    <Box>
-      <Text color={theme.colors.accent}>  </Text>
-      <Text color={theme.colors.secondary}>pane </Text>
-      <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
-      <Text color={theme.colors.textMuted}> → </Text>
-      <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
+    <Box flexDirection="column">
+      <Box>
+        <Text color={theme.colors.accent}>  </Text>
+        <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
+        <Text color={theme.colors.textMuted}> (</Text>
+        <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
+        <Text color={theme.colors.textMuted}>)</Text>
+      </Box>
+      {session.summary && (
+        <Box>
+          <Text color={theme.colors.textMuted}>    </Text>
+          <Text color={theme.colors.textMuted} dimColor>{session.summary}</Text>
+        </Box>
+      )}
     </Box>
   );
 }
