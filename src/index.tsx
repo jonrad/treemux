@@ -263,6 +263,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
           {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
           <Text color={theme.colors.selectionText} bold inverse>{` ${shortCwd} `}</Text>
           <Text color={theme.colors.textMuted}> (</Text>
+          <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
           <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
           <Text color={theme.colors.textMuted}>)</Text>
         </Box>
@@ -283,6 +284,7 @@ function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; is
         {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
         <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
+        <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
         <Text color={theme.colors.primary}>{session.paneIndex}</Text>
         <Text color={theme.colors.textMuted}>)</Text>
       </Box>

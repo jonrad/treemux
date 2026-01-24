@@ -16,12 +16,14 @@ export interface TmuxPaneWithProcess extends TmuxPane {
   cwd: string;
   command: string;
   pid: number;
+  windowName: string;
 }
 
 export interface ClaudeSession {
   paneIndex: number;
   paneId: string;
   cwd: string;
+  windowName: string;
   summary?: string;
   waitingForInput?: boolean;
 }
@@ -326,7 +328,7 @@ export function getPanesWithProcessInfo(): TmuxPaneWithProcess[] {
 
   try {
     const output = execSync(
-      "tmux list-panes -F '#{pane_index} #{pane_id} #{pane_current_command} #{pane_pid} #{pane_current_path}'",
+      "tmux list-panes -F '#{pane_index} #{pane_id} #{pane_current_command} #{pane_pid} #{window_name} #{pane_current_path}'",
       { encoding: "utf-8" }
     );
 
@@ -340,8 +342,9 @@ export function getPanesWithProcessInfo(): TmuxPaneWithProcess[] {
         const id = parts[1];
         const command = parts[2];
         const pid = parseInt(parts[3], 10);
-        const cwd = parts.slice(4).join(" "); // Handle paths with spaces
-        return { index, id, command, pid, cwd };
+        const windowName = parts[4];
+        const cwd = parts.slice(5).join(" "); // Handle paths with spaces
+        return { index, id, command, pid, windowName, cwd };
       });
   } catch {
     return [];
@@ -610,6 +613,7 @@ export function getClaudeSessions(): ClaudeSession[] {
         paneIndex: pane.index,
         paneId: pane.id,
         cwd: pane.cwd,
+        windowName: pane.windowName,
         summary: summaries.get(pane.cwd),
         // Only set waitingForInput if plugin is providing state
         waitingForInput: state === "waiting" ? true : state === "working" ? false : undefined,
