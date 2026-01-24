@@ -141,8 +141,9 @@ function KeyHint({ keys, action }: { keys: string; action: string }) {
 }
 
 type Mode = "list" | "add" | "theme";
+type FocusSection = "branches" | "sessions";
 
-function HelpBar({ mode, sortOrder }: { mode: Mode; sortOrder?: SortOrder }) {
+function HelpBar({ mode, sortOrder, focusSection, hasSessions }: { mode: Mode; sortOrder?: SortOrder; focusSection?: FocusSection; hasSessions?: boolean }) {
   if (mode === "add") {
     return (
       <Box>
@@ -163,6 +164,23 @@ function HelpBar({ mode, sortOrder }: { mode: Mode; sortOrder?: SortOrder }) {
     );
   }
 
+  // Sessions mode
+  if (focusSection === "sessions") {
+    return (
+      <Box flexWrap="wrap">
+        <KeyHint keys="↑k" action="up" />
+        <KeyHint keys="↓j" action="dn" />
+        <KeyHint keys="g/↵" action="go" />
+        <KeyHint keys="⇥" action="branches" />
+        <KeyHint keys="t" action="theme" />
+        <KeyHint keys="q" action="show" />
+        <KeyHint keys="␣" action="min" />
+        <KeyHint keys="^C" action="quit" />
+      </Box>
+    );
+  }
+
+  // Branches mode (default)
   return (
     <Box flexWrap="wrap">
       <KeyHint keys="↑k" action="up" />
@@ -173,6 +191,7 @@ function HelpBar({ mode, sortOrder }: { mode: Mode; sortOrder?: SortOrder }) {
       <KeyHint keys="t" action="theme" />
       <KeyHint keys="0-9" action="pane" />
       <KeyHint keys="g" action="go" />
+      {hasSessions && <KeyHint keys="⇥" action="sessions" />}
       <KeyHint keys="q" action="show" />
       <KeyHint keys="␣" action="min" />
       <KeyHint keys="^C" action="quit" />
@@ -224,17 +243,39 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
   );
 }
 
-function ClaudeSessionItem({ session }: { session: ClaudeSession }) {
+function ClaudeSessionItem({ session, isSelected }: { session: ClaudeSession; isSelected: boolean }) {
   const theme = useTheme();
   // Shorten the cwd for display (last 2 path components)
   const shortCwd = session.cwd.split("/").slice(-2).join("/");
+  const indicator = isSelected ? theme.icons.selected : " ";
+
+  if (isSelected) {
+    return (
+      <Box flexDirection="column">
+        <Box>
+          <Text color={theme.colors.selection} bold>{indicator} </Text>
+          <Text color={theme.colors.selectionText} bold inverse>{` ${shortCwd} `}</Text>
+          <Text color={theme.colors.textMuted}> (</Text>
+          <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
+          <Text color={theme.colors.textMuted}>)</Text>
+        </Box>
+        {session.summary && (
+          <Box>
+            <Text color={theme.colors.textMuted}>    </Text>
+            <Text color={theme.colors.accent}>{session.summary}</Text>
+          </Box>
+        )}
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column">
       <Box>
-        <Text color={theme.colors.accent}>  </Text>
+        <Text color={theme.colors.textMuted}>{indicator} </Text>
         <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
-        <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
+        <Text color={theme.colors.primary}>{session.paneIndex}</Text>
         <Text color={theme.colors.textMuted}>)</Text>
       </Box>
       {session.summary && (
@@ -247,14 +288,14 @@ function ClaudeSessionItem({ session }: { session: ClaudeSession }) {
   );
 }
 
-function ClaudeSessionsSection({ sessions }: { sessions: ClaudeSession[] }) {
+function ClaudeSessionsSection({ sessions, selectedIndex, isFocused }: { sessions: ClaudeSession[]; selectedIndex: number; isFocused: boolean }) {
   const theme = useTheme();
 
   return (
     <Box flexDirection="column" marginTop={1} paddingX={1}>
       <Box marginBottom={1}>
         <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
-        <Text color={theme.colors.textMuted}>CLAUDE SESSIONS </Text>
+        <Text color={isFocused ? theme.colors.primary : theme.colors.textMuted}>CLAUDE SESSIONS </Text>
         <Text color={theme.colors.textHighlight}>({sessions.length})</Text>
       </Box>
       {sessions.length === 0 ? (
@@ -265,8 +306,12 @@ function ClaudeSessionsSection({ sessions }: { sessions: ClaudeSession[] }) {
         </Box>
       ) : (
         <Box flexDirection="column">
-          {sessions.map((session) => (
-            <ClaudeSessionItem key={session.paneId} session={session} />
+          {sessions.map((session, index) => (
+            <ClaudeSessionItem
+              key={session.paneId}
+              session={session}
+              isSelected={isFocused && index === selectedIndex}
+            />
           ))}
         </Box>
       )}
@@ -372,7 +417,7 @@ function SnapshotView({ root, defaultSort, showDetails, theme }: {
           )}
 
           {/* Claude Sessions section */}
-          <ClaudeSessionsSection sessions={claudeSessions} />
+          <ClaudeSessionsSection sessions={claudeSessions} selectedIndex={0} isFocused={false} />
         </Box>
 
         {/* SPACER */}
@@ -501,6 +546,8 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 
   // Claude sessions state
   const [claudeSessions, setClaudeSessions] = useState<ClaudeSession[]>(() => getClaudeSessions());
+  const [focusSection, setFocusSection] = useState<FocusSection>("branches");
+  const [sessionIndex, setSessionIndex] = useState(0);
 
   const sortedWorktrees = sortWorktrees(worktrees, sortOrder);
 
@@ -678,6 +725,14 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       exit();
     }
 
+    // Tab to switch between sections
+    if (key.tab) {
+      if (claudeSessions.length > 0) {
+        setFocusSection((prev) => prev === "branches" ? "sessions" : "branches");
+      }
+      return;
+    }
+
     if (input === "q") {
       execSync("tmux display-panes -N ''", { stdio: "ignore" });
       return;
@@ -732,77 +787,128 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       return;
     }
 
-    if (input === "a") {
-      setMode("add");
-      setInputValue("");
-      return;
-    }
-
-    if (sortedWorktrees.length === 0) return;
-
-    if (input === "r") {
-      const selected = sortedWorktrees[selectedIndex];
-      if (selected) {
-        removeWorktree(selected);
-      }
-      return;
-    }
-
-    if (key.upArrow || input === "k") {
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-    }
-
-    if (key.downArrow || input === "j") {
-      setSelectedIndex((prev) =>
-        prev < sortedWorktrees.length - 1 ? prev + 1 : prev
-      );
-    }
-
-    // Number keys 0-9 send cd to that pane
-    if (/^[0-9]$/.test(input)) {
-      const paneIndex = parseInt(input, 10);
-      const selected = sortedWorktrees[selectedIndex];
-      if (selected) {
-        const result = sendCdToPane(paneIndex, selected.path);
-        if (result.success) {
-          setPaneHistory((prev) => ({ ...prev, [selected.path]: paneIndex }));
-          setStatus({ type: "success", message: `Sent cd to pane ${paneIndex}` });
-        } else {
-          setStatus({ type: "error", message: result.error || "Failed to send to pane" });
-        }
-      }
-    }
-
-    // Go to pane (uses history or detects by cwd)
-    if (input === "g") {
-      const selected = sortedWorktrees[selectedIndex];
-      if (!selected) {
+    // Branch-only commands
+    if (focusSection === "branches") {
+      if (input === "a") {
+        setMode("add");
+        setInputValue("");
         return;
       }
 
-      let targetPane: number | undefined = paneHistory[selected.path];
+      if (input === "r") {
+        const selected = sortedWorktrees[selectedIndex];
+        if (selected) {
+          removeWorktree(selected);
+        }
+        return;
+      }
 
-      // If no history for this worktree, try to find a pane by matching cwd
-      if (targetPane === undefined) {
-        const matchingPanes = findPanesWithPath(selected.path);
-        if (matchingPanes.length === 1) {
-          targetPane = matchingPanes[0].index;
-          setPaneHistory((prev) => ({ ...prev, [selected.path]: targetPane! }));
-        } else if (matchingPanes.length === 0) {
-          setStatus({ type: "error", message: "No pane found. Use 0-9 to send cd first." });
-          return;
+      if (key.upArrow || input === "k") {
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      }
+
+      if (key.downArrow || input === "j") {
+        if (selectedIndex >= sortedWorktrees.length - 1 && claudeSessions.length > 0) {
+          // Move to sessions when going past last branch
+          setFocusSection("sessions");
+          setSessionIndex(0);
         } else {
-          setStatus({ type: "error", message: `Multiple panes found (${matchingPanes.map(p => p.index).join(", ")})` });
-          return;
+          setSelectedIndex((prev) =>
+            prev < sortedWorktrees.length - 1 ? prev + 1 : prev
+          );
         }
       }
 
-      const result = selectPane(targetPane);
-      if (!result.success) {
-        setStatus({ type: "error", message: result.error || "Failed to go to pane" });
+      // Number keys 0-9 send cd to that pane
+      if (/^[0-9]$/.test(input)) {
+        const paneIndex = parseInt(input, 10);
+        const selected = sortedWorktrees[selectedIndex];
+        if (selected) {
+          const result = sendCdToPane(paneIndex, selected.path);
+          if (result.success) {
+            setPaneHistory((prev) => ({ ...prev, [selected.path]: paneIndex }));
+            setStatus({ type: "success", message: `Sent cd to pane ${paneIndex}` });
+          } else {
+            setStatus({ type: "error", message: result.error || "Failed to send to pane" });
+          }
+        }
+      }
+
+      // Go to pane (uses history or detects by cwd)
+      if (input === "g") {
+        const selected = sortedWorktrees[selectedIndex];
+        if (!selected) {
+          return;
+        }
+
+        let targetPane: number | undefined = paneHistory[selected.path];
+
+        // If no history for this worktree, try to find a pane by matching cwd
+        if (targetPane === undefined) {
+          const matchingPanes = findPanesWithPath(selected.path);
+          if (matchingPanes.length === 1) {
+            targetPane = matchingPanes[0].index;
+            setPaneHistory((prev) => ({ ...prev, [selected.path]: targetPane! }));
+          } else if (matchingPanes.length === 0) {
+            setStatus({ type: "error", message: "No pane found. Use 0-9 to send cd first." });
+            return;
+          } else {
+            setStatus({ type: "error", message: `Multiple panes found (${matchingPanes.map(p => p.index).join(", ")})` });
+            return;
+          }
+        }
+
+        const result = selectPane(targetPane);
+        if (!result.success) {
+          setStatus({ type: "error", message: result.error || "Failed to go to pane" });
+        }
+      }
+    }
+
+    // Session commands
+    if (focusSection === "sessions") {
+      if (claudeSessions.length === 0) return;
+
+      if (key.upArrow || input === "k") {
+        if (sessionIndex <= 0 && sortedWorktrees.length > 0) {
+          // Move to branches when going past first session
+          setFocusSection("branches");
+          setSelectedIndex(sortedWorktrees.length - 1);
+        } else {
+          setSessionIndex((prev) => (prev > 0 ? prev - 1 : prev));
+        }
+      }
+
+      if (key.downArrow || input === "j") {
+        setSessionIndex((prev) =>
+          prev < claudeSessions.length - 1 ? prev + 1 : prev
+        );
+      }
+
+      // Go to session pane
+      if (input === "g" || key.return) {
+        const session = claudeSessions[sessionIndex];
+        if (session) {
+          const result = selectPane(session.paneIndex);
+          if (!result.success) {
+            setStatus({ type: "error", message: result.error || "Failed to go to pane" });
+          }
+        }
       }
     }
   });
+
+  // Keep session index in bounds
+  useEffect(() => {
+    if (sessionIndex >= claudeSessions.length && claudeSessions.length > 0) {
+      setSessionIndex(claudeSessions.length - 1);
+    }
+    // Switch to branches if no sessions left
+    if (claudeSessions.length === 0 && focusSection === "sessions") {
+      setFocusSection("branches");
+    }
+  }, [claudeSessions.length, sessionIndex, focusSection]);
+
 
   // Show minimized view when pane is shrunk
   if (storedPaneWidth !== null) {
@@ -858,7 +964,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
           {/* Section header */}
           <Box marginBottom={1}>
             <Text color={theme.colors.secondary}>{theme.icons.sectionMarker} </Text>
-            <Text color={theme.colors.textMuted}>BRANCHES </Text>
+            <Text color={focusSection === "branches" ? theme.colors.primary : theme.colors.textMuted}>BRANCHES </Text>
             <Text color={theme.colors.textHighlight}>({sortedWorktrees.length})</Text>
             <SortIndicator sortOrder={sortOrder} />
             <PaneIndicator pane={currentPane} />
@@ -877,7 +983,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
                 <WorktreeItem
                   key={wt.path}
                   worktree={wt}
-                  isSelected={index === selectedIndex}
+                  isSelected={focusSection === "branches" && index === selectedIndex}
                   details={showDetails ? gitDetails.get(wt.path) : undefined}
                 />
               ))}
@@ -885,7 +991,11 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
           )}
 
           {/* Claude Sessions section */}
-          <ClaudeSessionsSection sessions={claudeSessions} />
+          <ClaudeSessionsSection
+            sessions={claudeSessions}
+            selectedIndex={sessionIndex}
+            isFocused={focusSection === "sessions"}
+          />
         </Box>
       )}
 
@@ -906,7 +1016,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 
         {/* Help bar */}
         <Box paddingX={1} paddingY={0}>
-          <HelpBar mode={mode} sortOrder={sortOrder} />
+          <HelpBar mode={mode} sortOrder={sortOrder} focusSection={focusSection} hasSessions={claudeSessions.length > 0} />
         </Box>
       </Box>
     </Box>
