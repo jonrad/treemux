@@ -43,7 +43,9 @@ The `pane_id` field (from `$TMUX_PANE`) allows TreeMux to correctly match state 
 
 When the plugin is installed, TreeMux displays a status indicator for each Claude session:
 
-- **● (yellow)** - Waiting for user input
-- **◐ (green)** - Actively working
+- **⏸ (yellow, flashing)** - Paused, waiting for your input (flashes for 5 seconds by default)
+- **▶ (green)** - Active, Claude is responding
+
+The flash duration is configurable via `--flash-duration <ms>` or `"flashDuration"` in config. Set to 0 to flash forever.
 
 If the plugin is not installed, no status indicator is shown.

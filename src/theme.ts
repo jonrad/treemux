@@ -40,7 +40,18 @@ export interface ThemeIcons {
   dividerLeft: string;
   dividerRight: string;
   sectionMarker: string;
+  // Session status icons (optional, have defaults)
+  sessionWaiting?: string;
+  sessionWorking?: string;
+  devcontainer?: string;
 }
+
+// Default session icons used when theme doesn't specify them
+export const DEFAULT_SESSION_ICONS = {
+  sessionWaiting: "⏸",
+  sessionWorking: "▶",
+  devcontainer: "📦",
+};
 
 export interface ThemeHeader {
   large: string;
@@ -87,6 +98,9 @@ export const THEME_CYBERPUNK: Theme = {
     dividerLeft: "◆",
     dividerRight: "◆",
     sectionMarker: "▐",
+    sessionWaiting: "⏸",
+    sessionWorking: "▶",
+    devcontainer: "⬡",
   },
   header: {
     large: `
@@ -136,6 +150,9 @@ export const THEME_MONOCHROME: Theme = {
     dividerLeft: "-",
     dividerRight: "-",
     sectionMarker: "|",
+    sessionWaiting: "||",
+    sessionWorking: ">",
+    devcontainer: "[c]",
   },
   header: {
     large: `
@@ -182,6 +199,9 @@ export const THEME_OCEAN: Theme = {
     dividerLeft: "~",
     dividerRight: "~",
     sectionMarker: "│",
+    sessionWaiting: "◇",
+    sessionWorking: "◆",
+    devcontainer: "⎔",
   },
   header: {
     large: `
@@ -223,6 +243,9 @@ export const THEME_FOREST: Theme = {
     dividerLeft: "❧",
     dividerRight: "❧",
     sectionMarker: "┃",
+    sessionWaiting: "○",
+    sessionWorking: "●",
+    devcontainer: "▣",
   },
   header: {
     large: `
@@ -264,6 +287,9 @@ export const THEME_SUNSET: Theme = {
     dividerLeft: "✦",
     dividerRight: "✦",
     sectionMarker: "║",
+    sessionWaiting: "☾",
+    sessionWorking: "☀",
+    devcontainer: "◈",
   },
   header: {
     large: `
@@ -308,6 +334,9 @@ export const THEME_MINIMAL: Theme = {
     dividerLeft: "",
     dividerRight: "",
     sectionMarker: "",
+    sessionWaiting: "=",
+    sessionWorking: ">",
+    devcontainer: "c",
   },
   header: {
     large: `

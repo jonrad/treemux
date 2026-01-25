@@ -8,7 +8,7 @@ import { resolve, join } from "path";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
 import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth, getClaudeSessions, ClaudeSession } from "./tmux.js";
-import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption } from "./theme.js";
+import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption, DEFAULT_SESSION_ICONS } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // THEME CONTEXT
@@ -16,6 +16,9 @@ import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, l
 
 const ThemeContext = createContext<Theme>(DEFAULT_THEME);
 const useTheme = () => useContext(ThemeContext);
+
+const FlashDurationContext = createContext<number>(5000);
+const useFlashDuration = () => useContext(FlashDurationContext);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTS
@@ -245,6 +248,7 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
 
 function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { session: ClaudeSession; isSelected: boolean; debugMode?: boolean; worktrees: Worktree[] }) {
   const theme = useTheme();
+  const flashDurationMs = useFlashDuration();
 
   // For devcontainer sessions, try to resolve branch from hostCwd
   let displayName: string;
@@ -257,15 +261,50 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
   }
   const indicator = isSelected ? theme.icons.selected : " ";
 
-  // Status indicator: waiting = yellow circle, working = green spinner-like, undefined = no indicator
+  // Flash state for waiting indicator (flashes for flashDuration, then stays solid)
+  const [flashOn, setFlashOn] = useState(true);
+  const [flashExpired, setFlashExpired] = useState(false);
+  useEffect(() => {
+    if (session.waitingForInput) {
+      // Reset flash state when entering waiting
+      setFlashExpired(false);
+      setFlashOn(true);
+
+      // Flash interval (toggle every 500ms)
+      const interval = setInterval(() => setFlashOn(f => !f), 500);
+
+      // Stop flashing after duration (0 = flash forever)
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      if (flashDurationMs > 0) {
+        timeout = setTimeout(() => {
+          setFlashExpired(true);
+          setFlashOn(true);
+        }, flashDurationMs);
+      }
+
+      return () => {
+        clearInterval(interval);
+        if (timeout) clearTimeout(timeout);
+      };
+    }
+    setFlashOn(true);
+    setFlashExpired(false);
+  }, [session.waitingForInput, flashDurationMs]);
+
+  // Status indicator: waiting = paused (needs your input), working = active (Claude responding)
   const hasStatus = session.waitingForInput !== undefined;
-  const statusIcon = session.waitingForInput ? "●" : "◐";
+  const waitingIcon = theme.icons.sessionWaiting ?? DEFAULT_SESSION_ICONS.sessionWaiting;
+  const workingIcon = theme.icons.sessionWorking ?? DEFAULT_SESSION_ICONS.sessionWorking;
+  const statusIcon = session.waitingForInput ? waitingIcon : workingIcon;
   const statusColor = session.waitingForInput ? theme.colors.warning : theme.colors.success;
   const statusPadding = hasStatus ? "      " : "    ";
+  const isFlashing = session.waitingForInput && !flashExpired;
+  const showWaitingIndicator = !isFlashing || flashOn;
 
   // Devcontainer indicator
+  const devcontainerIcon = theme.icons.devcontainer ?? DEFAULT_SESSION_ICONS.devcontainer;
   const devcontainerBadge = session.isDevcontainer ? (
-    <Text color={theme.colors.accent}> [DC]</Text>
+    <Text color={theme.colors.accent}> {devcontainerIcon}</Text>
   ) : null;
 
   if (isSelected) {
@@ -273,7 +312,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
       <Box flexDirection="column">
         <Box>
           <Text color={theme.colors.selection} bold>{indicator} </Text>
-          {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
+          {hasStatus && <Text color={showWaitingIndicator ? statusColor : undefined}>{showWaitingIndicator ? statusIcon : " "} </Text>}
           <Text color={theme.colors.selectionText} bold inverse>{` ${displayName} `}</Text>
           <Text color={theme.colors.textMuted}> (</Text>
           <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
@@ -298,7 +337,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
     <Box flexDirection="column">
       <Box>
         <Text color={theme.colors.textMuted}>{indicator} </Text>
-        {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
+        {hasStatus && <Text color={showWaitingIndicator ? statusColor : undefined}>{showWaitingIndicator ? statusIcon : " "} </Text>}
         <Text color={theme.colors.textHighlight}>{displayName}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
         <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
@@ -491,10 +530,11 @@ program
   .option("-d, --details", "show git details (commits ahead/behind, modified files)")
   .option("--no-details", "hide git details")
   .option("-t, --theme <name|path>", `theme name or path to JSON (built-in: ${Object.keys(BUILT_IN_THEMES).join(", ")})`)
+  .option("--flash-duration <ms>", "how long waiting indicator flashes in ms (0 = forever, default: 5000)")
   .option("--snapshot", "render once and exit (non-interactive mode, bypasses tmux check)")
   .parse();
 
-const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; snapshot?: boolean }>();
+const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; flashDuration?: string; snapshot?: boolean }>();
 
 // Load config file (from --config path or searches package.json, .treemuxrc, treemux.config.js, etc.)
 const explorer = cosmiconfigSync("treemux");
@@ -521,6 +561,7 @@ const options = {
   sort: (cliOptions.sort ?? fileConfig.sort ?? "recent") as SortOrder,
   details: cliOptions.details !== undefined ? cliOptions.details : detailsDefault,
   theme: cliOptions.theme ?? fileConfig.theme ?? "forest",
+  flashDuration: cliOptions.flashDuration ?? fileConfig.flashDuration ?? "5000",
 };
 
 const snapshotMode = cliOptions.snapshot ?? false;
@@ -544,6 +585,7 @@ if (options.root) {
 const pollInterval = parseInt(options.poll, 10);
 const worktreesDir = options.worktreesDir;
 const theme = loadTheme(options.theme);
+const flashDuration = parseInt(options.flashDuration, 10);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
@@ -1075,15 +1117,17 @@ function Root({ initialTheme, showDetails }: { initialTheme: Theme; showDetails:
 
   return (
     <ThemeContext.Provider value={currentTheme}>
-      <App
-        root={root}
-        pollInterval={pollInterval}
-        worktreesDir={worktreesDir}
-        defaultSort={options.sort}
-        showDetails={showDetails}
-        initialTheme={initialTheme}
-        onThemeChange={setCurrentTheme}
-      />
+      <FlashDurationContext.Provider value={flashDuration}>
+        <App
+          root={root}
+          pollInterval={pollInterval}
+          worktreesDir={worktreesDir}
+          defaultSort={options.sort}
+          showDetails={showDetails}
+          initialTheme={initialTheme}
+          onThemeChange={setCurrentTheme}
+        />
+      </FlashDurationContext.Provider>
     </ThemeContext.Provider>
   );
 }

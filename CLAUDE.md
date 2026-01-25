@@ -19,6 +19,7 @@ Terminal UI for git worktrees built with TypeScript, React, and Ink. Features a 
 - `-s, --sort <order>` - Sort order: recent or branch (default: recent)
 - `-d, --details` / `--no-details` - Show/hide git details (default: true)
 - `-t, --theme <name|path>` - Theme name or path to JSON file (default: cyberpunk)
+- `--flash-duration <ms>` - How long waiting indicator flashes in ms (0 = forever, default: 5000)
 - `--snapshot` - Render once and exit (non-interactive mode, bypasses tmux check)
 
 All CLI options (except `--config`) can also be specified in a config file. CLI args override config file values.
@@ -38,7 +39,8 @@ Example `.treemuxrc.json`:
   "worktreesDir": ".worktrees",
   "sort": "recent",
   "details": true,
-  "theme": "cyberpunk"
+  "theme": "cyberpunk",
+  "flashDuration": "5000"
 }
 ```
 
@@ -112,8 +114,8 @@ claude --plugin-dir /path/to/treemux/plugin
 ```
 
 With the plugin installed:
-- **● (yellow)** - Session waiting for user input
-- **◐ (green)** - Session actively working
+- **⏸ (yellow, flashing)** - Paused, waiting for your input
+- **▶ (green)** - Active, Claude is responding
 
 See `plugin/README.md` for details.
 
