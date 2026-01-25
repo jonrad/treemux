@@ -374,12 +374,17 @@ interface PluginSessionState {
   is_devcontainer?: boolean;
 }
 
+interface PluginSessionInfo {
+  state: string;
+  sessionId: string;
+}
+
 /**
  * Read session states from the TreeMux plugin state files.
- * Returns a map of pane_id -> state ("working" | "waiting").
+ * Returns a map of pane_id -> {state, sessionId}.
  */
-function getPluginSessionStates(): Map<string, string> {
-  const states = new Map<string, string>();
+function getPluginSessionStates(): Map<string, PluginSessionInfo> {
+  const states = new Map<string, PluginSessionInfo>();
 
   try {
     const stateDir = join(homedir(), ".claude", "treemux");
@@ -389,8 +394,11 @@ function getPluginSessionStates(): Map<string, string> {
       try {
         const content = readFileSync(join(stateDir, file), "utf-8");
         const state: PluginSessionState = JSON.parse(content);
-        if (state.pane_id && state.state) {
-          states.set(state.pane_id, state.state);
+        if (state.pane_id && state.state && state.session_id) {
+          states.set(state.pane_id, {
+            state: state.state,
+            sessionId: state.session_id,
+          });
         }
       } catch {
         // Skip malformed files
@@ -423,10 +431,12 @@ function paneIdToIndex(paneId: string): number | undefined {
  * Get devcontainer sessions from plugin state files.
  * These are sessions running inside devcontainers that have HOST_TMUX_PANE set.
  */
-function getDevcontainerSessions(): ClaudeSession[] {
+function getDevcontainerSessions(
+  pluginStates: Map<string, PluginSessionInfo>,
+  summaries: Map<string, string>
+): ClaudeSession[] {
   const sessions: ClaudeSession[] = [];
   const currentPaneId = getCurrentPaneId();
-  const summaries = getClaudeTranscriptSummaries();
 
   // Stale threshold: 2 minutes
   const staleThreshold = Date.now() - 2 * 60 * 1000;
@@ -467,7 +477,8 @@ function getDevcontainerSessions(): ClaudeSession[] {
           cwd: state.cwd,
           windowName: paneInfo?.windowName || "devcontainer",
           pid: paneInfo?.pid || 0,
-          summary: summaries.get(state.cwd),
+          // Look up by pane ID first (exact match), fall back to cwd
+          summary: summaries.get(state.pane_id) || summaries.get(state.cwd),
           waitingForInput: state.state === "waiting" ? true : state.state === "working" ? false : undefined,
           hostname: state.hostname,
           isDevcontainer: true,
@@ -485,17 +496,87 @@ function getDevcontainerSessions(): ClaudeSession[] {
 }
 
 /**
- * Find Claude transcript files and extract summaries for sessions by cwd.
- * Returns a map of cwd -> summary (first user message).
+ * Extract summary from transcript file content.
+ * Returns the first meaningful user message.
  */
-function getClaudeTranscriptSummaries(): Map<string, string> {
+function extractSummaryFromTranscript(content: string): string | undefined {
+  const lines = content.split("\n").filter(l => l.trim());
+
+  for (const line of lines) {
+    try {
+      const entry: TranscriptEntry = JSON.parse(line);
+
+      if (entry.type === "user" && entry.message) {
+        const msgContent = entry.message.content;
+        let text = "";
+
+        if (typeof msgContent === "string") {
+          text = msgContent;
+        } else if (Array.isArray(msgContent)) {
+          text = msgContent
+            .filter(c => c.type === "text")
+            .map(c => c.text || "")
+            .join(" ");
+        }
+
+        if (!text || text === "null") continue;
+        if (text.includes("<local-command-caveat>")) continue;
+        if (text.includes("<local-command-stdout>")) continue;
+        if (text.match(/^<command-name>.*<\/command-name>\s*$/)) continue;
+
+        const argsMatch = text.match(/<command-args>\s*([\s\S]*?)<\/command-args>/);
+        if (argsMatch) {
+          text = argsMatch[1].trim();
+          if (!text) continue;
+        } else if (text.includes("<command-")) {
+          continue;
+        }
+
+        text = text.replace(/^#.*\n/gm, "").trim();
+        text = text.replace(/^\* /gm, "").trim();
+        const firstLine = text.split("\n")[0].trim();
+        if (!firstLine) continue;
+
+        text = firstLine;
+        if (text.length > 50) {
+          text = text.substring(0, 47) + "...";
+        }
+
+        if (text) {
+          return text;
+        }
+      }
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Find Claude transcript files and extract summaries for sessions.
+ * Uses session_id from plugin state to look up specific transcripts.
+ * Returns a map of pane_id -> summary (first user message).
+ * Falls back to cwd-based lookup for sessions without plugin state.
+ */
+function getClaudeTranscriptSummaries(
+  pluginStates: Map<string, PluginSessionInfo>
+): Map<string, string> {
   const summaries = new Map<string, string>();
+  const cwdToSummary = new Map<string, string>(); // Fallback for sessions without plugin state
 
   try {
     const claudeDir = join(homedir(), ".claude", "projects");
     const projectDirs = readdirSync(claudeDir, { withFileTypes: true })
       .filter(d => d.isDirectory())
       .map(d => join(claudeDir, d.name));
+
+    // Build a map of session_id -> pane_id for quick lookup
+    const sessionIdToPaneId = new Map<string, string>();
+    for (const [paneId, info] of pluginStates) {
+      sessionIdToPaneId.set(info.sessionId, paneId);
+    }
 
     // Find recently modified transcript files (within last 5 minutes)
     const recentThreshold = Date.now() - 5 * 60 * 1000;
@@ -511,69 +592,32 @@ function getClaudeTranscriptSummaries(): Map<string, string> {
             const stat = statSync(filePath);
             if (stat.mtimeMs < recentThreshold) continue;
 
+            // Extract session_id from filename (e.g., "abc123.jsonl" -> "abc123")
+            const sessionId = file.replace(".jsonl", "");
+            const paneId = sessionIdToPaneId.get(sessionId);
+
             const content = readFileSync(filePath, "utf-8");
-            const lines = content.split("\n").filter(l => l.trim());
+            const summary = extractSummaryFromTranscript(content);
 
-            let cwd: string | undefined;
-            let summary: string | undefined;
-
-            for (const line of lines) {
-              try {
-                const entry: TranscriptEntry = JSON.parse(line);
-
-                if (entry.cwd && !cwd) {
-                  cwd = entry.cwd;
-                }
-
-                if (entry.type === "user" && entry.message && !summary) {
-                  const msgContent = entry.message.content;
-                  let text = "";
-
-                  if (typeof msgContent === "string") {
-                    text = msgContent;
-                  } else if (Array.isArray(msgContent)) {
-                    text = msgContent
-                      .filter(c => c.type === "text")
-                      .map(c => c.text || "")
-                      .join(" ");
-                  }
-
-                  if (!text || text === "null") continue;
-                  if (text.includes("<local-command-caveat>")) continue;
-                  if (text.includes("<local-command-stdout>")) continue;
-                  if (text.match(/^<command-name>.*<\/command-name>\s*$/)) continue;
-
-                  const argsMatch = text.match(/<command-args>\s*([\s\S]*?)<\/command-args>/);
-                  if (argsMatch) {
-                    text = argsMatch[1].trim();
-                    if (!text) continue;
-                  } else if (text.includes("<command-")) {
-                    continue;
-                  }
-
-                  text = text.replace(/^#.*\n/gm, "").trim();
-                  text = text.replace(/^\* /gm, "").trim();
-                  const firstLine = text.split("\n")[0].trim();
-                  if (!firstLine) continue;
-
-                  text = firstLine;
-                  if (text.length > 50) {
-                    text = text.substring(0, 47) + "...";
-                  }
-
-                  if (text) {
-                    summary = text;
-                  }
-                }
-
-                if (cwd && summary) break;
-              } catch {
-                // Skip malformed lines
+            if (summary) {
+              // If we have a pane_id for this session, map directly
+              if (paneId) {
+                summaries.set(paneId, summary);
               }
-            }
 
-            if (cwd && summary) {
-              summaries.set(cwd, summary);
+              // Also build cwd map for fallback
+              const lines = content.split("\n").filter(l => l.trim());
+              for (const line of lines) {
+                try {
+                  const entry: TranscriptEntry = JSON.parse(line);
+                  if (entry.cwd) {
+                    cwdToSummary.set(entry.cwd, summary);
+                    break;
+                  }
+                } catch {
+                  // Skip malformed lines
+                }
+              }
             }
           } catch {
             // Skip files we can't read
@@ -587,7 +631,8 @@ function getClaudeTranscriptSummaries(): Map<string, string> {
     // Claude directory doesn't exist or isn't readable
   }
 
-  return summaries;
+  // Return both the pane_id-based summaries and the cwd-based fallback
+  return new Map([...cwdToSummary, ...summaries]);
 }
 
 /**
@@ -684,8 +729,8 @@ export function getClaudeSessions(): ClaudeSession[] {
 
   const panes = getPanesWithProcessInfo();
   const currentPaneId = getCurrentPaneId();
-  const summaries = getClaudeTranscriptSummaries();
   const pluginStates = getPluginSessionStates();
+  const summaries = getClaudeTranscriptSummaries(pluginStates);
   const sessions: ClaudeSession[] = [];
   const seenPaneIds = new Set<string>();
 
@@ -698,23 +743,24 @@ export function getClaudeSessions(): ClaudeSession[] {
 
     // Walk the process tree from the shell to find Claude
     if (pane.pid > 0 && isClaudeProcessTree(pane.pid)) {
-      const state = pluginStates.get(pane.id);
+      const pluginState = pluginStates.get(pane.id);
       sessions.push({
         paneIndex: pane.index,
         paneId: pane.id,
         cwd: pane.cwd,
         windowName: pane.windowName,
         pid: pane.pid,
-        summary: summaries.get(pane.cwd),
+        // Look up by pane ID first (exact match), fall back to cwd
+        summary: summaries.get(pane.id) || summaries.get(pane.cwd),
         // Only set waitingForInput if plugin is providing state
-        waitingForInput: state === "waiting" ? true : state === "working" ? false : undefined,
+        waitingForInput: pluginState?.state === "waiting" ? true : pluginState?.state === "working" ? false : undefined,
       });
       seenPaneIds.add(pane.id);
     }
   }
 
   // Then, get devcontainer sessions from plugin state files
-  const devcontainerSessions = getDevcontainerSessions();
+  const devcontainerSessions = getDevcontainerSessions(pluginStates, summaries);
   for (const session of devcontainerSessions) {
     // Avoid duplicates (if somehow detected both ways)
     if (!seenPaneIds.has(session.paneId)) {
