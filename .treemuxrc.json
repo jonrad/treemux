@@ -1,0 +1,11 @@
+{
+  "root": null,
+  "poll": "500",
+  "worktreesDir": "../",
+  "sort": "recent",
+  "details": true,
+  "theme": "forest",
+  "hooks": {
+    "afterAdd": "./scripts/relativize-worktree.sh"
+  }
+}
