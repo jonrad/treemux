@@ -46,11 +46,6 @@ link_to_shared "settings.json"
 link_to_shared ".credentials.json"
 link_to_shared ".claude.json"
 
-# Link shared commands directory (skills like /commit)
-if [ -d "$CLAUDE_SHARED/commands" ]; then
-    ln -sfn "$CLAUDE_SHARED/commands" "$CLAUDE_HOME/commands"
-fi
-
 # Create local hooks directory for per-container customization
 mkdir -p "$CLAUDE_HOME/hooks"
 

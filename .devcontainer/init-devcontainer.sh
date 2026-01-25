@@ -31,8 +31,10 @@ else
     exit 1
 fi
 
-# Ensure ~/.claude/treemux exists on host for bind mount
+# Ensure ~/.claude directories exist on host for bind mounts
 mkdir -p "$HOME/.claude/treemux"
+mkdir -p "$HOME/.claude/commands"
+mkdir -p "$HOME/.claude/skills"
 
 # Generate docker-compose.yml based on worktree vs main
 if [ "$IS_WORKTREE" = "true" ]; then
@@ -62,8 +64,10 @@ services:
       # Persistent volumes
       - claude-code-bashhistory:/commandhistory
       - claude-code-shared:/home/node/.claude-shared
-      # Host bind for treemux plugin state
+      # Host bind mounts for Claude config
       - $HOME/.claude/treemux:/home/node/.claude/treemux:rw
+      - $HOME/.claude/commands:/home/node/.claude/commands:rw
+      - $HOME/.claude/skills:/home/node/.claude/skills:rw
     environment:
       HOST_TMUX_PANE: "${TMUX_PANE:-}"
       NODE_OPTIONS: "--max-old-space-size=4096"
@@ -110,8 +114,10 @@ services:
       # Persistent volumes
       - claude-code-bashhistory:/commandhistory
       - claude-code-shared:/home/node/.claude-shared
-      # Host bind for treemux plugin state
+      # Host bind mounts for Claude config
       - $HOME/.claude/treemux:/home/node/.claude/treemux:rw
+      - $HOME/.claude/commands:/home/node/.claude/commands:rw
+      - $HOME/.claude/skills:/home/node/.claude/skills:rw
     environment:
       HOST_TMUX_PANE: "${TMUX_PANE:-}"
       NODE_OPTIONS: "--max-old-space-size=4096"
