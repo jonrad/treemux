@@ -7,8 +7,7 @@ set -e
 # ============================================
 # Claude Code Configuration
 # ============================================
-# Settings and commands are shared via volume at /home/node/.claude-shared
-# Auth (credentials) stays container-local for security
+# Settings, commands, and credentials are shared via volume at /home/node/.claude-shared
 
 CLAUDE_HOME="/home/node/.claude"
 CLAUDE_SHARED="/home/node/.claude-shared"
@@ -21,21 +20,35 @@ if [ -d "$CLAUDE_SHARED" ] && [ ! -w "$CLAUDE_SHARED" ]; then
 fi
 mkdir -p "$CLAUDE_SHARED"
 
-# Symlink shared config into local config dir (NOT credentials)
-if [ -d "$CLAUDE_SHARED" ]; then
-    # Link settings (shared across containers)
-    if [ -f "$CLAUDE_SHARED/settings.json" ]; then
-        ln -sf "$CLAUDE_SHARED/settings.json" "$CLAUDE_HOME/settings.json"
-    elif [ -f "$CLAUDE_HOME/settings.json" ]; then
-        # First run - seed shared from local, then link
-        cp "$CLAUDE_HOME/settings.json" "$CLAUDE_SHARED/settings.json"
-        ln -sf "$CLAUDE_SHARED/settings.json" "$CLAUDE_HOME/settings.json"
+# Helper: ensure a file is symlinked to shared volume
+# If local file exists (not a symlink), move it to shared first
+# Always creates symlink so Claude writes directly to shared volume
+link_to_shared() {
+    local filename="$1"
+    local local_path="$CLAUDE_HOME/$filename"
+    local shared_path="$CLAUDE_SHARED/$filename"
+
+    # If local file exists and is NOT a symlink, migrate it to shared
+    if [ -f "$local_path" ] && [ ! -L "$local_path" ]; then
+        if [ ! -f "$shared_path" ]; then
+            cp "$local_path" "$shared_path"
+        fi
+        rm "$local_path"
     fi
 
-    # Link shared commands directory (skills like /commit)
-    if [ -d "$CLAUDE_SHARED/commands" ]; then
-        ln -sfn "$CLAUDE_SHARED/commands" "$CLAUDE_HOME/commands"
-    fi
+    # Always create symlink (even if target doesn't exist yet)
+    # Claude will write through the symlink to the shared volume
+    ln -sf "$shared_path" "$local_path"
+}
+
+# Link Claude config files to shared volume
+link_to_shared "settings.json"
+link_to_shared ".credentials.json"
+link_to_shared ".claude.json"
+
+# Link shared commands directory (skills like /commit)
+if [ -d "$CLAUDE_SHARED/commands" ]; then
+    ln -sfn "$CLAUDE_SHARED/commands" "$CLAUDE_HOME/commands"
 fi
 
 # Create local hooks directory for per-container customization

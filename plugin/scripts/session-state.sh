@@ -15,9 +15,15 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 # Get tmux pane ID from environment (e.g., %0, %1, etc.)
-# Use host pane if available (devcontainer), else inner pane
-if [ "$DEVCONTAINER" = "true" ] && [ -n "$HOST_TMUX_PANE" ]; then
-  PANE_ID="$HOST_TMUX_PANE"
+# For devcontainers: read from file (updated on each attach), fall back to env var
+if [ "$DEVCONTAINER" = "true" ]; then
+  if [ -f /tmp/host_tmux_pane ]; then
+    PANE_ID="$(cat /tmp/host_tmux_pane)"
+  elif [ -n "$HOST_TMUX_PANE" ]; then
+    PANE_ID="$HOST_TMUX_PANE"
+  else
+    PANE_ID=""
+  fi
 else
   PANE_ID="${TMUX_PANE:-}"
 fi

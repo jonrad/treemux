@@ -19,7 +19,11 @@ if ! devcontainer exec --workspace-folder "$WORKSPACE_DIR" true 2>/dev/null; the
     exit 1
 fi
 
-# Attach to existing session or create new one with claude
+# Attach to existing session or create new one with bash
+# Write pane ID to a file so the plugin can read it (env vars don't update on reattach)
+devcontainer exec --workspace-folder "$WORKSPACE_DIR" \
+    bash -c "echo '${TMUX_PANE:-}' > /tmp/host_tmux_pane"
+
 exec devcontainer exec --workspace-folder "$WORKSPACE_DIR" \
     tmux new-session -A -s "$WORKTREE_NAME" \
     "bash"
