@@ -33,6 +33,9 @@ RUN mkdir -p /usr/local/share/npm-global && \
 
 ARG USERNAME=node
 
+# Allow node user to use sudo without password
+RUN echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/node
+
 # Persist bash history.
 RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   && mkdir /commandhistory \
