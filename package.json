@@ -9,7 +9,9 @@
   },
   "files": [
     "dist",
-    "themes"
+    "themes",
+    "plugin",
+    ".claude-plugin"
   ],
   "repository": {
     "type": "git",

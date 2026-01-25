@@ -297,7 +297,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
   const workingIcon = theme.icons.sessionWorking ?? DEFAULT_SESSION_ICONS.sessionWorking;
   const statusIcon = session.waitingForInput ? waitingIcon : workingIcon;
   const statusColor = session.waitingForInput ? theme.colors.warning : theme.colors.success;
-  const statusPadding = hasStatus ? "      " : "    ";
+  const statusPadding = "     ";
   const isFlashing = session.waitingForInput && !flashExpired;
   const showWaitingIndicator = !isFlashing || flashOn;
 
@@ -312,8 +312,8 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
       <Box flexDirection="column">
         <Box>
           <Text color={theme.colors.selection} bold>{indicator} </Text>
-          {hasStatus && <Text color={showWaitingIndicator ? statusColor : undefined}>{showWaitingIndicator ? statusIcon : " "} </Text>}
-          <Text color={theme.colors.selectionText} bold inverse>{` ${displayName} `}</Text>
+          <Text color={hasStatus && showWaitingIndicator ? statusColor : undefined}>{hasStatus && showWaitingIndicator ? statusIcon : " "} </Text>
+          <Text color={theme.colors.selectionText} bold inverse>{`${displayName} `}</Text>
           <Text color={theme.colors.textMuted}> (</Text>
           <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
           <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
@@ -337,7 +337,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { sess
     <Box flexDirection="column">
       <Box>
         <Text color={theme.colors.textMuted}>{indicator} </Text>
-        {hasStatus && <Text color={showWaitingIndicator ? statusColor : undefined}>{showWaitingIndicator ? statusIcon : " "} </Text>}
+        <Text color={hasStatus && showWaitingIndicator ? statusColor : undefined}>{hasStatus && showWaitingIndicator ? statusIcon : " "} </Text>
         <Text color={theme.colors.textHighlight}>{displayName}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
         <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
@@ -532,9 +532,40 @@ program
   .option("-t, --theme <name|path>", `theme name or path to JSON (built-in: ${Object.keys(BUILT_IN_THEMES).join(", ")})`)
   .option("--flash-duration <ms>", "how long waiting indicator flashes in ms (0 = forever, default: 5000)")
   .option("--snapshot", "render once and exit (non-interactive mode, bypasses tmux check)")
+  .option("--install-plugin", "install the TreeMux session tracker plugin for Claude Code")
   .parse();
 
-const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; flashDuration?: string; snapshot?: boolean }>();
+const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; flashDuration?: string; snapshot?: boolean; installPlugin?: boolean }>();
+
+// Handle --install-plugin flag
+if (cliOptions.installPlugin) {
+  console.log("Installing TreeMux session tracker plugin for Claude Code...\n");
+
+  try {
+    // First, try to add the marketplace
+    console.log("Adding TreeMux marketplace...");
+    execSync("claude plugin marketplace add jonrad/treemux", {
+      stdio: "inherit",
+    });
+
+    // Then install the plugin
+    console.log("\nInstalling session-tracker plugin...");
+    execSync("claude plugin install session-tracker@treemux-plugins", {
+      stdio: "inherit",
+    });
+
+    console.log("\nPlugin installed successfully!");
+    console.log("The session tracker will now show status indicators in TreeMux.");
+  } catch (err) {
+    // If the above fails, try the slash command format as fallback
+    console.error("\nAutomatic installation failed.");
+    console.error("Please install manually by running these commands in Claude Code:\n");
+    console.error("  /plugin marketplace add jonrad/treemux");
+    console.error("  /plugin install session-tracker@treemux-plugins");
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
 // Load config file (from --config path or searches package.json, .treemuxrc, treemux.config.js, etc.)
 const explorer = cosmiconfigSync("treemux");

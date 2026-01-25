@@ -4,16 +4,20 @@ A Claude Code plugin that tracks session state for TreeMux integration.
 
 ## Installation
 
-Run Claude Code with the plugin:
-
+**Option 1: Automatic installation (recommended)**
 ```bash
-claude --plugin-dir /path/to/treemux/plugin
+npx treemux --install-plugin
 ```
 
-Or add to your shell config:
+**Option 2: Manual installation via Claude Code slash commands**
+```
+/plugin marketplace add jonrad/treemux
+/plugin install session-tracker@treemux-plugins
+```
 
+**Option 3: Local development (if you have the source)**
 ```bash
-alias claude='claude --plugin-dir /path/to/treemux/plugin'
+claude --plugin-dir /path/to/treemux/plugin
 ```
 
 ## What It Does
