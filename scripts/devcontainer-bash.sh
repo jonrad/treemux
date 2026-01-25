@@ -26,4 +26,4 @@ devcontainer exec --workspace-folder "$WORKSPACE_DIR" \
 
 exec devcontainer exec --workspace-folder "$WORKSPACE_DIR" \
     tmux new-session -A -s "$WORKTREE_NAME" \
-    "bash"
+    "bash --rcfile <(echo '. ~/.bashrc 2>/dev/null; alias claude=\"claude --dangerously-skip-permissions\"')"

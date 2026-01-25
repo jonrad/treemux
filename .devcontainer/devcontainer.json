@@ -1,32 +1,10 @@
 {
   "name": "TreeMux Dev",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "TZ": "${localEnv:TZ:America/Los_Angeles}",
-      "CLAUDE_CODE_VERSION": "latest",
-      "GIT_DELTA_VERSION": "0.18.2",
-      "ZSH_IN_DOCKER_VERSION": "1.2.0"
-    }
-  },
-  "runArgs": [
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
-  ],
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "initializeCommand": "LOCAL_WORKSPACE_FOLDER=\"${localWorkspaceFolder}\" bash \"${localWorkspaceFolder}/.devcontainer/init-devcontainer.sh\"",
+  "workspaceFolder": "/workspace/${localWorkspaceFolderBasename}",
   "customizations": {},
   "remoteUser": "node",
-  "mounts": [
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-shared,target=/home/node/.claude-shared,type=volume",
-    "source=${localEnv:HOME}/.claude/treemux,target=/home/node/.claude/treemux,type=bind"
-  ],
-  "containerEnv": {
-    "HOST_TMUX_PANE": "${localEnv:TMUX_PANE}",
-    "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
-  },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "workspaceFolder": "/workspace",
-  "postCreateCommand": "bash .devcontainer/setup.sh"
+  "postCreateCommand": "bash /workspace/main/.devcontainer/setup.sh"
 }

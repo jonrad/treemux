@@ -18,6 +18,10 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Auto-generated devcontainer files
+.devcontainer/.env
+.devcontainer/docker-compose.yml
+
 # IDE/Editor
 .idea/
 .vscode/
