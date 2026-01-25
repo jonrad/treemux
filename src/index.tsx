@@ -225,10 +225,20 @@ function KeyHint({ keys, action }: { keys: string; action: string }) {
   );
 }
 
-type Mode = "list" | "add" | "theme";
+type Mode = "list" | "add" | "theme" | "working";
 type FocusSection = "branches" | "sessions";
 
 function HelpBar({ mode, sortOrder, focusSection, hasSessions }: { mode: Mode; sortOrder?: SortOrder; focusSection?: FocusSection; hasSessions?: boolean }) {
+  const theme = useTheme();
+
+  if (mode === "working") {
+    return (
+      <Box>
+        <Text color={theme.colors.textMuted}>Please wait...</Text>
+      </Box>
+    );
+  }
+
   if (mode === "add") {
     return (
       <Box>
@@ -780,33 +790,36 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   }, [root]);
 
   const createWorktree = useCallback(async (name: string) => {
-    const worktreePath = join(root, worktreesDir, name);
-
-    // Check if worktree already exists
-    const existingWorktree = worktrees.find(
-      (wt) => wt.name === name || wt.path === worktreePath
-    );
-    if (existingWorktree) {
-      setStatus({ type: "error", message: `Worktree '${name}' already exists` });
-      return;
-    }
-
-    const hookEnv: HookEnv = {
-      TREEMUX_ACTION: "add",
-      TREEMUX_WORKTREE_NAME: name,
-      TREEMUX_WORKTREE_PATH: worktreePath,
-      TREEMUX_WORKTREE_BRANCH: name,
-      TREEMUX_ROOT: root,
-    };
-
-    // Run before hook
-    const beforeResult = executeHook(hooks.beforeAdd, hookEnv);
-    if (!beforeResult.success) {
-      setStatus({ type: "error", message: `Before-add hook failed: ${beforeResult.error}` });
-      return;
-    }
-
     try {
+      const worktreePath = join(root, worktreesDir, name);
+
+      // Check if worktree already exists
+      const existingWorktree = worktrees.find(
+        (wt) => wt.name === name || wt.path === worktreePath
+      );
+      if (existingWorktree) {
+        setStatus({ type: "error", message: `Worktree '${name}' already exists` });
+        return;
+      }
+
+      const hookEnv: HookEnv = {
+        TREEMUX_ACTION: "add",
+        TREEMUX_WORKTREE_NAME: name,
+        TREEMUX_WORKTREE_PATH: worktreePath,
+        TREEMUX_WORKTREE_BRANCH: name,
+        TREEMUX_ROOT: root,
+      };
+
+      // Run before hook
+      if (hooks.beforeAdd) {
+        setStatus({ type: "working", message: `Running pre-create hooks for '${name}'...` });
+      }
+      const beforeResult = await executeHookAsync(hooks.beforeAdd, hookEnv);
+      if (!beforeResult.success) {
+        setStatus({ type: "error", message: `Before-add hook failed: ${beforeResult.error}` });
+        return;
+      }
+
       setStatus({ type: "working", message: `Creating worktree '${name}'...` });
 
       await execAsync(`git worktree add "${worktreePath}"`, {
@@ -814,7 +827,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
         encoding: "utf-8",
       });
 
-      // Run after hook (async since it may take time, e.g., devcontainer setup)
+      // Run after hook
       if (hooks.afterAdd) {
         setStatus({ type: "working", message: `Running post-create hooks for '${name}'...` });
       }
@@ -828,6 +841,8 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create worktree";
       setStatus({ type: "error", message });
+    } finally {
+      setMode("list");
     }
   }, [root, worktreesDir, worktrees, refreshWorktrees, hooks]);
 
@@ -924,7 +939,12 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   }, [pollInterval]);
 
   useInput((input, key) => {
-    // Clear status on any input
+    // Block all input while working
+    if (mode === "working") {
+      return;
+    }
+
+    // Clear status on any input (but not in working mode)
     if (status) {
       setStatus(null);
     }
@@ -938,9 +958,11 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 
       if (key.return) {
         if (inputValue.trim()) {
+          setMode("working");
           createWorktree(inputValue.trim());
+        } else {
+          setMode("list");
         }
-        setMode("list");
         setInputValue("");
         return;
       }
@@ -1204,7 +1226,16 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       </Box>
 
       {/* CONTENT AREA */}
-      {mode === "add" ? (
+      {mode === "working" ? (
+        <Box flexDirection="column" paddingX={2} marginY={1}>
+          <Box marginBottom={1}>
+            <Text color={theme.colors.secondary} bold>{"┌─ "}</Text>
+            <Text color={theme.colors.primary} bold>WORKING</Text>
+            <Text color={theme.colors.secondary} bold>{" ─┐"}</Text>
+          </Box>
+          <StatusMessage status={status} />
+        </Box>
+      ) : mode === "add" ? (
         <Box flexDirection="column" paddingX={2}>
           <Box marginBottom={1}>
             <Text color={theme.colors.secondary} bold>{"┌─ "}</Text>

@@ -55,6 +55,8 @@ Run custom scripts before/after worktree add/remove. Hooks receive env vars:
 
 Configure via CLI (`--hook-before-add`, etc.) or config file `hooks` object.
 
+Add hooks run synchronously with a "WORKING" indicator - UI blocks until hooks complete.
+
 ## Gotchas
 
 - Must run inside tmux (except with `--snapshot`)
