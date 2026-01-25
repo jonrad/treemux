@@ -1,16 +1,14 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "treemux-plugins",
   "owner": {
     "name": "TreeMux"
   },
-  "metadata": {
-    "description": "Plugins for TreeMux - Terminal UI for git worktrees",
-    "version": "1.0.0"
-  },
+  "description": "Plugins for TreeMux - Terminal UI for git worktrees",
   "plugins": [
     {
       "name": "session-tracker",
-      "source": "../plugin",
+      "source": "./plugin",
       "description": "Tracks Claude Code session state for TreeMux integration",
       "version": "1.0.0"
     }

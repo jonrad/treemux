@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, createContext, useContext } fr
 import { program } from "commander";
 import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
-import { resolve, join } from "path";
+import { resolve, join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
 import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth, getClaudeSessions, ClaudeSession } from "./tmux.js";
@@ -541,10 +542,15 @@ const cliOptions = program.opts<{ config?: string; root?: string; poll?: string;
 if (cliOptions.installPlugin) {
   console.log("Installing TreeMux session tracker plugin for Claude Code...\n");
 
+  // Get the project root directory (where .claude-plugin/marketplace.json is)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const projectRoot = resolve(__dirname, "..");
+
   try {
-    // First, try to add the marketplace
+    // First, try to add the marketplace from local directory
     console.log("Adding TreeMux marketplace...");
-    execSync("claude plugin marketplace add jonrad/treemux", {
+    execSync(`claude plugin marketplace add "${projectRoot}"`, {
       stdio: "inherit",
     });
 
