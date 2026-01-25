@@ -46,6 +46,15 @@ Or manually in Claude Code:
 - Theme merging: custom themes inherit missing values from cyberpunk
 - Process detection: cross-platform (Linux/macOS) via `ps -eo pid,ppid,args`
 
+## Hooks
+
+Run custom scripts before/after worktree add/remove. Hooks receive env vars:
+- `TREEMUX_ACTION` - "add" or "remove"
+- `TREEMUX_WORKTREE_NAME`, `TREEMUX_WORKTREE_PATH`, `TREEMUX_WORKTREE_BRANCH`
+- `TREEMUX_ROOT`, `TREEMUX_COMMIT` (remove only)
+
+Configure via CLI (`--hook-before-add`, etc.) or config file `hooks` object.
+
 ## Gotchas
 
 - Must run inside tmux (except with `--snapshot`)

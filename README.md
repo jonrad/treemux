@@ -110,6 +110,10 @@ Custom themes can be added as JSON files in the `themes/` directory.
 | `--flash-duration <ms>` | Session waiting indicator flash (0 = forever) | `5000` |
 | `--snapshot` | Render once and exit (non-interactive) | off |
 | `--install-plugin` | Install the Claude Code session tracker plugin | - |
+| `--hook-before-add <script>` | Script to run before adding a worktree | - |
+| `--hook-after-add <script>` | Script to run after adding a worktree | - |
+| `--hook-before-remove <script>` | Script to run before removing a worktree | - |
+| `--hook-after-remove <script>` | Script to run after removing a worktree | - |
 
 ## Config File
 
@@ -128,11 +132,44 @@ Uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig). Create any of:
   "sort": "recent",
   "details": true,
   "theme": "forest",
-  "flashDuration": "5000"
+  "flashDuration": "5000",
+  "hooks": {
+    "afterAdd": "/path/to/setup-worktree.sh"
+  }
 }
 ```
 
 CLI arguments override config file values.
+
+## Hooks
+
+Run custom scripts before/after worktree add and remove operations. Useful for setting up dependencies, running migrations, or cleaning up resources.
+
+**Available hooks:**
+- `beforeAdd` / `afterAdd` - Run before/after creating a worktree
+- `beforeRemove` / `afterRemove` - Run before/after removing a worktree
+
+**Environment variables passed to hooks:**
+| Variable | Description |
+|----------|-------------|
+| `TREEMUX_ACTION` | `"add"` or `"remove"` |
+| `TREEMUX_WORKTREE_NAME` | Name of the worktree |
+| `TREEMUX_WORKTREE_PATH` | Full filesystem path |
+| `TREEMUX_WORKTREE_BRANCH` | Branch name |
+| `TREEMUX_ROOT` | Repository root directory |
+| `TREEMUX_COMMIT` | Commit hash (remove only) |
+
+**Example hook** (`setup-worktree.sh`):
+```bash
+#!/bin/bash
+cd "$TREEMUX_WORKTREE_PATH"
+npm install
+cp .env.example .env
+```
+
+**Behavior:**
+- If a "before" hook fails (non-zero exit), the action is aborted
+- If an "after" hook fails, the action completes but an error is shown
 
 ## Snapshot Mode
 

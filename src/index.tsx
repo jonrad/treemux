@@ -12,6 +12,45 @@ import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneTo
 import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption, DEFAULT_SESSION_ICONS } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface Hooks {
+  beforeAdd?: string;
+  afterAdd?: string;
+  beforeRemove?: string;
+  afterRemove?: string;
+}
+
+interface HookEnv {
+  TREEMUX_ACTION: "add" | "remove";
+  TREEMUX_WORKTREE_NAME: string;
+  TREEMUX_WORKTREE_PATH: string;
+  TREEMUX_WORKTREE_BRANCH: string;
+  TREEMUX_ROOT: string;
+  TREEMUX_COMMIT?: string;
+}
+
+function executeHook(hookScript: string | undefined, env: HookEnv): { success: boolean; error?: string } {
+  if (!hookScript) return { success: true };
+
+  try {
+    execSync(hookScript, {
+      encoding: "utf-8",
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Hook failed";
+    return { success: false, error: message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // THEME CONTEXT
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -534,9 +573,28 @@ program
   .option("--flash-duration <ms>", "how long waiting indicator flashes in ms (0 = forever, default: 5000)")
   .option("--snapshot", "render once and exit (non-interactive mode, bypasses tmux check)")
   .option("--install-plugin", "install the TreeMux session tracker plugin for Claude Code")
+  .option("--hook-before-add <script>", "script to run before adding a worktree")
+  .option("--hook-after-add <script>", "script to run after adding a worktree")
+  .option("--hook-before-remove <script>", "script to run before removing a worktree")
+  .option("--hook-after-remove <script>", "script to run after removing a worktree")
   .parse();
 
-const cliOptions = program.opts<{ config?: string; root?: string; poll?: string; worktreesDir?: string; sort?: string; details?: boolean; theme?: string; flashDuration?: string; snapshot?: boolean; installPlugin?: boolean }>();
+const cliOptions = program.opts<{
+  config?: string;
+  root?: string;
+  poll?: string;
+  worktreesDir?: string;
+  sort?: string;
+  details?: boolean;
+  theme?: string;
+  flashDuration?: string;
+  snapshot?: boolean;
+  installPlugin?: boolean;
+  hookBeforeAdd?: string;
+  hookAfterAdd?: string;
+  hookBeforeRemove?: string;
+  hookAfterRemove?: string;
+}>();
 
 // Handle --install-plugin flag
 if (cliOptions.installPlugin) {
@@ -591,6 +649,7 @@ const fileConfig = configResult?.config ?? {};
 // Merge: defaults < config file < CLI args
 // For details: default is true, config can override, CLI can override config
 const detailsDefault = fileConfig.details !== undefined ? fileConfig.details : true;
+const fileHooks = fileConfig.hooks ?? {};
 const options = {
   root: cliOptions.root ?? fileConfig.root,
   poll: cliOptions.poll ?? fileConfig.poll ?? "500",
@@ -599,6 +658,12 @@ const options = {
   details: cliOptions.details !== undefined ? cliOptions.details : detailsDefault,
   theme: cliOptions.theme ?? fileConfig.theme ?? "forest",
   flashDuration: cliOptions.flashDuration ?? fileConfig.flashDuration ?? "5000",
+  hooks: {
+    beforeAdd: cliOptions.hookBeforeAdd ?? fileHooks.beforeAdd,
+    afterAdd: cliOptions.hookAfterAdd ?? fileHooks.afterAdd,
+    beforeRemove: cliOptions.hookBeforeRemove ?? fileHooks.beforeRemove,
+    afterRemove: cliOptions.hookAfterRemove ?? fileHooks.afterRemove,
+  } as Hooks,
 };
 
 const snapshotMode = cliOptions.snapshot ?? false;
@@ -628,7 +693,7 @@ const flashDuration = parseInt(options.flashDuration, 10);
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initialTheme, onThemeChange }: {
+function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initialTheme, onThemeChange, hooks }: {
   root: string;
   pollInterval: number;
   worktreesDir: string;
@@ -636,6 +701,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
   showDetails: boolean;
   initialTheme: Theme;
   onThemeChange: (theme: Theme) => void;
+  hooks: Hooks;
 }) {
   const theme = useTheme();
   const { exit } = useApp();
@@ -689,28 +755,73 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       return;
     }
 
+    const hookEnv: HookEnv = {
+      TREEMUX_ACTION: "add",
+      TREEMUX_WORKTREE_NAME: name,
+      TREEMUX_WORKTREE_PATH: worktreePath,
+      TREEMUX_WORKTREE_BRANCH: name,
+      TREEMUX_ROOT: root,
+    };
+
+    // Run before hook
+    const beforeResult = executeHook(hooks.beforeAdd, hookEnv);
+    if (!beforeResult.success) {
+      setStatus({ type: "error", message: `Before-add hook failed: ${beforeResult.error}` });
+      return;
+    }
+
     try {
       execSync(`git worktree add "${worktreePath}"`, {
         cwd: root,
         encoding: "utf-8",
         stdio: "pipe",
       });
-      setStatus({ type: "success", message: `Created worktree '${name}'` });
+
+      // Run after hook
+      const afterResult = executeHook(hooks.afterAdd, hookEnv);
+      if (!afterResult.success) {
+        setStatus({ type: "error", message: `Created worktree but after-add hook failed: ${afterResult.error}` });
+      } else {
+        setStatus({ type: "success", message: `Created worktree '${name}'` });
+      }
       refreshWorktrees();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create worktree";
       setStatus({ type: "error", message });
     }
-  }, [root, worktreesDir, worktrees, refreshWorktrees]);
+  }, [root, worktreesDir, worktrees, refreshWorktrees, hooks]);
 
   const removeWorktree = useCallback((worktree: Worktree) => {
+    const hookEnv: HookEnv = {
+      TREEMUX_ACTION: "remove",
+      TREEMUX_WORKTREE_NAME: worktree.name,
+      TREEMUX_WORKTREE_PATH: worktree.path,
+      TREEMUX_WORKTREE_BRANCH: worktree.branch,
+      TREEMUX_ROOT: root,
+      TREEMUX_COMMIT: worktree.commit,
+    };
+
+    // Run before hook
+    const beforeResult = executeHook(hooks.beforeRemove, hookEnv);
+    if (!beforeResult.success) {
+      setStatus({ type: "error", message: `Before-remove hook failed: ${beforeResult.error}` });
+      return;
+    }
+
     try {
       execSync(`git worktree remove "${worktree.path}"`, {
         cwd: root,
         encoding: "utf-8",
         stdio: "pipe",
       });
-      setStatus({ type: "success", message: `Removed worktree '${worktree.name}'` });
+
+      // Run after hook
+      const afterResult = executeHook(hooks.afterRemove, hookEnv);
+      if (!afterResult.success) {
+        setStatus({ type: "error", message: `Removed worktree but after-remove hook failed: ${afterResult.error}` });
+      } else {
+        setStatus({ type: "success", message: `Removed worktree '${worktree.name}'` });
+      }
       refreshWorktrees();
     } catch (err) {
       let message = "Failed to remove worktree";
@@ -721,7 +832,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
       }
       setStatus({ type: "error", message });
     }
-  }, [root, refreshWorktrees]);
+  }, [root, refreshWorktrees, hooks]);
 
   useEffect(() => {
     if (pollInterval <= 0) return;
@@ -1149,7 +1260,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
 // ROOT COMPONENT WITH THEME STATE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function Root({ initialTheme, showDetails }: { initialTheme: Theme; showDetails: boolean }) {
+function Root({ initialTheme, showDetails, hooks }: { initialTheme: Theme; showDetails: boolean; hooks: Hooks }) {
   const [currentTheme, setCurrentTheme] = useState<Theme>(initialTheme);
 
   return (
@@ -1163,6 +1274,7 @@ function Root({ initialTheme, showDetails }: { initialTheme: Theme; showDetails:
           showDetails={showDetails}
           initialTheme={initialTheme}
           onThemeChange={setCurrentTheme}
+          hooks={hooks}
         />
       </FlashDurationContext.Provider>
     </ThemeContext.Provider>
@@ -1184,5 +1296,5 @@ if (snapshotMode) {
   );
   instance.waitUntilExit();
 } else {
-  render(<Root initialTheme={theme} showDetails={options.details} />);
+  render(<Root initialTheme={theme} showDetails={options.details} hooks={options.hooks} />);
 }
