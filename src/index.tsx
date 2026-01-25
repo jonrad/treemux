@@ -272,7 +272,7 @@ function HelpBar({ mode, sortOrder, focusSection, hasSessions }: { mode: Mode; s
       <KeyHint keys="↓j" action="dn" />
       <KeyHint keys="a" action="add" />
       <KeyHint keys="r" action="rm" />
-      <KeyHint keys="s" action={sortOrder === "recent" ? "→branch" : "→recent"} />
+      <KeyHint keys="s" action="sort" />
       <KeyHint keys="t" action="theme" />
       <KeyHint keys="0-9" action="pane" />
       <KeyHint keys="g" action="go" />
