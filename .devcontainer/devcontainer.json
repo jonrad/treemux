@@ -6,5 +6,5 @@
   "workspaceFolder": "/workspace/${localWorkspaceFolderBasename}",
   "customizations": {},
   "remoteUser": "node",
-  "postCreateCommand": "bash /workspace/main/.devcontainer/setup.sh"
+  "postCreateCommand": "bash .devcontainer/setup.sh"
 }

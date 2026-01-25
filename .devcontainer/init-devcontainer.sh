@@ -78,7 +78,9 @@ services:
 
 volumes:
   claude-code-bashhistory:
+    name: claude-code-bashhistory
   claude-code-shared:
+    name: claude-code-shared
 EOF
     echo "Devcontainer initialized (worktree mode):"
     echo "  Worktree: $WORKTREE_NAME -> /workspace/$WORKTREE_NAME (read/write)"
@@ -124,7 +126,9 @@ services:
 
 volumes:
   claude-code-bashhistory:
+    name: claude-code-bashhistory
   claude-code-shared:
+    name: claude-code-shared
 EOF
     echo "Devcontainer initialized (main repo mode):"
     echo "  Main repo: $MAIN_PATH -> /workspace/main (read/write)"
