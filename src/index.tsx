@@ -243,10 +243,18 @@ function SortIndicator({ sortOrder }: { sortOrder: SortOrder }) {
   );
 }
 
-function ClaudeSessionItem({ session, isSelected, debugMode }: { session: ClaudeSession; isSelected: boolean; debugMode?: boolean }) {
+function ClaudeSessionItem({ session, isSelected, debugMode, worktrees }: { session: ClaudeSession; isSelected: boolean; debugMode?: boolean; worktrees: Worktree[] }) {
   const theme = useTheme();
-  // Shorten the cwd for display (last 2 path components)
-  const shortCwd = session.cwd.split("/").slice(-2).join("/");
+
+  // For devcontainer sessions, try to resolve branch from hostCwd
+  let displayName: string;
+  if (session.isDevcontainer && session.hostCwd) {
+    const worktree = worktrees.find(w => w.path === session.hostCwd);
+    displayName = worktree?.branch || session.cwd.split("/").slice(-2).join("/");
+  } else {
+    // Shorten the cwd for display (last 2 path components)
+    displayName = session.cwd.split("/").slice(-2).join("/");
+  }
   const indicator = isSelected ? theme.icons.selected : " ";
 
   // Status indicator: waiting = yellow circle, working = green spinner-like, undefined = no indicator
@@ -266,7 +274,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode }: { session: Claude
         <Box>
           <Text color={theme.colors.selection} bold>{indicator} </Text>
           {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
-          <Text color={theme.colors.selectionText} bold inverse>{` ${shortCwd} `}</Text>
+          <Text color={theme.colors.selectionText} bold inverse>{` ${displayName} `}</Text>
           <Text color={theme.colors.textMuted}> (</Text>
           <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
           <Text color={theme.colors.primary} bold>{session.paneIndex}</Text>
@@ -291,7 +299,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode }: { session: Claude
       <Box>
         <Text color={theme.colors.textMuted}>{indicator} </Text>
         {hasStatus && <Text color={statusColor}>{statusIcon} </Text>}
-        <Text color={theme.colors.textHighlight}>{shortCwd}</Text>
+        <Text color={theme.colors.textHighlight}>{displayName}</Text>
         <Text color={theme.colors.textMuted}> (</Text>
         <Text color={theme.colors.textMuted}>{session.windowName}:</Text>
         <Text color={theme.colors.primary}>{session.paneIndex}</Text>
@@ -311,7 +319,7 @@ function ClaudeSessionItem({ session, isSelected, debugMode }: { session: Claude
   );
 }
 
-function ClaudeSessionsSection({ sessions, selectedIndex, isFocused, debugMode }: { sessions: ClaudeSession[]; selectedIndex: number; isFocused: boolean; debugMode?: boolean }) {
+function ClaudeSessionsSection({ sessions, selectedIndex, isFocused, debugMode, worktrees }: { sessions: ClaudeSession[]; selectedIndex: number; isFocused: boolean; debugMode?: boolean; worktrees: Worktree[] }) {
   const theme = useTheme();
 
   return (
@@ -335,6 +343,7 @@ function ClaudeSessionsSection({ sessions, selectedIndex, isFocused, debugMode }
               session={session}
               isSelected={isFocused && index === selectedIndex}
               debugMode={debugMode}
+              worktrees={worktrees}
             />
           ))}
         </Box>
@@ -441,7 +450,7 @@ function SnapshotView({ root, defaultSort, showDetails, theme }: {
           )}
 
           {/* Claude Sessions section */}
-          <ClaudeSessionsSection sessions={claudeSessions} selectedIndex={0} isFocused={false} />
+          <ClaudeSessionsSection sessions={claudeSessions} selectedIndex={0} isFocused={false} worktrees={worktrees} />
         </Box>
 
         {/* SPACER */}
@@ -1028,6 +1037,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
             selectedIndex={sessionIndex}
             isFocused={focusSection === "sessions"}
             debugMode={debugMode}
+            worktrees={worktrees}
           />
         </Box>
       )}

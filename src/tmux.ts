@@ -29,6 +29,7 @@ export interface ClaudeSession {
   waitingForInput?: boolean;
   hostname?: string;
   isDevcontainer?: boolean;
+  hostCwd?: string; // Host path for devcontainer sessions (to resolve branch)
 }
 
 /**
@@ -470,6 +471,7 @@ function getDevcontainerSessions(): ClaudeSession[] {
           waitingForInput: state.state === "waiting" ? true : state.state === "working" ? false : undefined,
           hostname: state.hostname,
           isDevcontainer: true,
+          hostCwd: paneInfo?.cwd,
         });
       } catch {
         // Skip malformed files
