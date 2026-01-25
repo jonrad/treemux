@@ -18,3 +18,6 @@ REL_TO_MAIN=$(python3 -c "import os.path; print(os.path.relpath('$TREEMUX_ROOT',
 
 # Update worktree's .git file to use relative path
 echo "gitdir: $REL_TO_MAIN/.git/worktrees/$TREEMUX_WORKTREE_NAME" > "$WORKTREE_GIT_FILE"
+
+# Start devcontainer for the new worktree
+devcontainer up --workspace-folder "$TREEMUX_WORKTREE_PATH" --remove-existing-container

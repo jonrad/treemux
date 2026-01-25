@@ -6,9 +6,12 @@ import { cosmiconfigSync } from "cosmiconfig";
 import { existsSync } from "fs";
 import { resolve, join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { execSync, exec } from "child_process";
+import { promisify } from "util";
 import { getWorktrees, sortWorktrees, Worktree, SortOrder, GitDetails, getAllWorktreeDetails } from "./git.js";
 import { sendCdToPane, selectPane, findPanesWithPath, movePaneToLeft, movePaneToRight, togglePaneWidth, getClaudeSessions, ClaudeSession } from "./tmux.js";
+
+const execAsync = promisify(exec);
 import { Theme, loadTheme, DEFAULT_THEME, BUILT_IN_THEMES, getAvailableThemes, loadThemeByOption, ThemeOption, DEFAULT_SESSION_ICONS } from "./theme.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +41,24 @@ function executeHook(hookScript: string | undefined, env: HookEnv): { success: b
     execSync(hookScript, {
       encoding: "utf-8",
       stdio: "pipe",
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Hook failed";
+    return { success: false, error: message };
+  }
+}
+
+async function executeHookAsync(hookScript: string | undefined, env: HookEnv): Promise<{ success: boolean; error?: string }> {
+  if (!hookScript) return { success: true };
+
+  try {
+    await execAsync(hookScript, {
+      encoding: "utf-8",
       env: {
         ...process.env,
         ...env,
@@ -153,11 +174,32 @@ function InputPrompt({ label, value }: { label: string; value: string }) {
   );
 }
 
-type Status = { type: "success" | "error"; message: string } | null;
+type Status = { type: "success" | "error" | "working"; message: string } | null;
+
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 function StatusMessage({ status }: { status: Status }) {
   const theme = useTheme();
+  const [spinnerFrame, setSpinnerFrame] = useState(0);
+
+  useEffect(() => {
+    if (status?.type !== "working") return;
+    const interval = setInterval(() => {
+      setSpinnerFrame((f) => (f + 1) % SPINNER_FRAMES.length);
+    }, 80);
+    return () => clearInterval(interval);
+  }, [status?.type]);
+
   if (!status) return null;
+
+  if (status.type === "working") {
+    return (
+      <Box>
+        <Text color={theme.colors.primary}>{SPINNER_FRAMES[spinnerFrame]} </Text>
+        <Text color={theme.colors.primary}>{status.message}</Text>
+      </Box>
+    );
+  }
 
   const isSuccess = status.type === "success";
   const icon = isSuccess ? theme.icons.check : theme.icons.cross;
@@ -743,7 +785,7 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
     setWorktrees(getWorktrees(root));
   }, [root]);
 
-  const createWorktree = useCallback((name: string) => {
+  const createWorktree = useCallback(async (name: string) => {
     const worktreePath = join(root, worktreesDir, name);
 
     // Check if worktree already exists
@@ -771,14 +813,18 @@ function App({ root, pollInterval, worktreesDir, defaultSort, showDetails, initi
     }
 
     try {
-      execSync(`git worktree add "${worktreePath}"`, {
+      setStatus({ type: "working", message: `Creating worktree '${name}'...` });
+
+      await execAsync(`git worktree add "${worktreePath}"`, {
         cwd: root,
         encoding: "utf-8",
-        stdio: "pipe",
       });
 
-      // Run after hook
-      const afterResult = executeHook(hooks.afterAdd, hookEnv);
+      // Run after hook (async since it may take time, e.g., devcontainer setup)
+      if (hooks.afterAdd) {
+        setStatus({ type: "working", message: `Running post-create hooks for '${name}'...` });
+      }
+      const afterResult = await executeHookAsync(hooks.afterAdd, hookEnv);
       if (!afterResult.success) {
         setStatus({ type: "error", message: `Created worktree but after-add hook failed: ${afterResult.error}` });
       } else {
