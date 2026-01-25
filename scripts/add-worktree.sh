@@ -41,4 +41,4 @@ if ! devcontainer up --workspace-folder "$WORKTREE_DIR"; then
 fi
 
 echo "Starting Claude..."
-exec "$SCRIPT_DIR/start-claude.sh" "$WORKTREE_DIR"
+exec "$SCRIPT_DIR/devcontainer-claude.sh" "$WORKTREE_DIR"
