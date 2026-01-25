@@ -1,101 +1,89 @@
-```
-████████╗██████╗ ███████╗███████╗███╗   ███╗██╗   ██╗██╗  ██╗
-╚══██╔══╝██╔══██╗██╔════╝██╔════╝████╗ ████║██║   ██║╚██╗██╔╝
-   ██║   ██████╔╝█████╗  █████╗  ██╔████╔██║██║   ██║ ╚███╔╝
-   ██║   ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╔╝██║██║   ██║ ██╔██╗
-   ██║   ██║  ██║███████╗███████╗██║ ╚═╝ ██║╚██████╔╝██╔╝ ██╗
-   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝
-```
+# TreeMux
 
-<div align="center">
+A themeable terminal UI for git worktrees built with TypeScript, React, and Ink.
 
-> [!CAUTION]
-> 🛑 **STOP** — This entire document is basically hallucinated. Don't trust anything you read.
+Navigate branches like directories. Teleport between contexts. Stay in flow.
 
-**A themeable terminal UI for git worktrees**
+## What is this?
 
-*Navigate branches like directories. Teleport between contexts. Stay in flow.*
+Git worktrees let you check out multiple branches simultaneously in separate directories. TreeMux gives you a TUI to manage them with tmux integration that remembers which pane goes with which worktree.
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
-[![Ink](https://img.shields.io/badge/Ink-000000?style=flat&logo=npm&logoColor=white)](https://github.com/vadimdemedes/ink)
+It also detects Claude Code sessions running in other tmux panes, letting you see what each session is working on and jump to them instantly.
 
-</div>
-
----
-
-## ✦ What is this?
-
-Git worktrees let you check out multiple branches simultaneously in separate directories. **TreeMux** gives you a slick TUI to manage them - with tmux integration that remembers which pane goes with which worktree.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  TREEMUX                                    cyberpunk theme │
-├─────────────────────────────────────────────────────────────┤
-│  ▸ main            a1b2c3d  feat: add dark mode      2h ago │
-│    feature/auth    e4f5g6h  wip: oauth flow          1d ago │
-│    bugfix/crash    i7j8k9l  fix: null check          3d ago │
-│    experiment      m0n1o2p  trying things            1w ago │
-└─────────────────────────────────────────────────────────────┘
-     [j/k] navigate   [0-9] cd to pane   [g] go to pane
-```
-
-## ⚡ Quick Start
+## Quick Start
 
 ```bash
 pnpm install
 pnpm build
-pnpm start
+pnpm start -- --root /path/to/repo
 ```
 
-Or with options:
+**Requirements:** Node.js >= 18, Git, tmux (must run inside a tmux session)
 
-```bash
-pnpm start -- --root /path/to/repo --theme ocean
-```
+## Keybindings
 
-## ⌨ Keybindings
+### Navigation
+- `↑` / `k` - Move up (seamlessly moves between branches and sessions)
+- `↓` / `j` - Move down
+- `Tab` - Switch focus between branches and sessions sections
 
-```
- Navigation                    Actions                      Tmux
-╭────────────────────────────╮╭────────────────────────────╮╭────────────────────────────╮
-│  ↑ k    move up            ││  a       add worktree      ││  0-9   cd to pane N        │
-│  ↓ j    move down          ││  r       remove worktree   ││  g     go to worktree pane │
-│  Tab    switch section     ││  s       toggle sort       ││  q     show pane numbers   │
-│                            ││  t       theme picker      ││  < >   move pane left/right│
-╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
-                                    Ctrl+C to quit
-```
+### Branch Commands (when branches focused)
+- `a` - Add new worktree (prompts for branch name)
+- `r` - Remove selected worktree
+- `s` - Toggle sort order (recent/branch)
+- `0-9` - Send cd command to tmux pane N (remembered per worktree)
+- `g` - Go to worktree's pane (uses history or detects by cwd)
 
-## 🤖 Claude Code Integration
+### Session Commands (when sessions focused)
+- `g` / `Enter` - Jump to selected session's pane
+
+### Global
+- `t` - Open theme picker
+- `q` - Show tmux pane numbers
+- `<` - Move current pane to leftmost (full height)
+- `>` - Move current pane to rightmost (full height)
+- `Space` - Toggle pane width (minimize/restore)
+- `Ctrl+C` - Quit
+
+## Claude Code Integration
 
 TreeMux automatically detects Claude Code sessions running in other tmux panes:
 
-- Sessions appear below the branches list with pane number and working directory
-- Shows a summary of what each session is working on (from transcript)
-- Navigate seamlessly with `j/k` - moves between branches and sessions
+- Shows pane number, working directory, and session summary
+- Summary extracted from first user message in transcript
+- Navigate seamlessly with `j`/`k` between branches and sessions
 - Press `g` or `Enter` to jump to a session's pane
 
-## 📸 Snapshot Mode
+### Session Status Plugin (Optional)
 
-For automation, testing, or AI-assisted development:
+Install the TreeMux plugin to show live session status indicators:
 
+**Option 1: Automatic installation (if you have npx/treemux installed)**
 ```bash
-# Render UI once and exit (no interaction, bypasses tmux requirement)
-pnpm start -- --snapshot --root /path/to/repo
+npx treemux --install-plugin
 ```
 
-Useful for validating UI changes without manual interaction.
+**Option 2: Manual installation via Claude Code**
+```
+/plugin marketplace add jonrad/treemux
+/plugin install session-tracker@treemux-plugins
+```
 
-## 🎨 Themes
+With the plugin installed:
+- **Paused indicator (yellow, flashing)** - Waiting for your input
+- **Active indicator (green)** - Claude is responding
 
-Six built-in themes to match your vibe:
+See `plugin/README.md` for details.
+
+## Themes
+
+Six built-in themes:
 
 | Theme | Description |
 |-------|-------------|
-| `cyberpunk` | Neon pink & cyan on dark *(default)* |
+| `cyberpunk` | Neon pink & cyan on dark |
 | `ocean` | Deep blues and teals |
-| `forest` | Earthy greens |
+| `forest` | Earthy greens (default) |
 | `sunset` | Warm oranges and purples |
 | `monochrome` | Classic terminal aesthetic |
 | `minimal` | Clean and understated |
@@ -103,34 +91,34 @@ Six built-in themes to match your vibe:
 Press `t` to open the theme picker, or set via CLI:
 
 ```bash
-pnpm start -- --theme forest
+pnpm start -- --theme ocean
 ```
 
-Custom themes go in `themes/` as JSON files.
+Custom themes can be added as JSON files in the `themes/` directory.
 
-## ⚙ Configuration
-
-### CLI Options
+## CLI Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-c, --config <path>` | Custom config file path | *auto-detected* |
-| `-r, --root <path>` | Repository root directory | *current dir* |
+| `-c, --config <path>` | Custom config file path | auto-detected |
+| `-r, --root <path>` | Repository root directory | current dir |
 | `-p, --poll <ms>` | Refresh interval (0 to disable) | `500` |
 | `-w, --worktrees-dir <path>` | Directory for new worktrees | `.worktrees` |
 | `-s, --sort <order>` | Sort by `recent` or `branch` | `recent` |
-| `-d, --details` | Show git details | `true` |
-| `-t, --theme <name>` | Theme name or JSON path | `cyberpunk` |
-| `--snapshot` | Render once and exit (non-interactive) | *off* |
+| `-d, --details` / `--no-details` | Show/hide git details | `true` |
+| `-t, --theme <name\|path>` | Theme name or JSON path | `forest` |
+| `--flash-duration <ms>` | Session waiting indicator flash (0 = forever) | `5000` |
+| `--snapshot` | Render once and exit (non-interactive) | off |
+| `--install-plugin` | Install the Claude Code session tracker plugin | - |
 
-### Config File
+## Config File
 
 Uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig). Create any of:
 
 - `.treemuxrc.json`
 - `.treemuxrc`
 - `treemux.config.js`
-- `package.json` → `"treemux": { ... }`
+- `package.json` with `"treemux": { ... }`
 
 ```json
 {
@@ -139,62 +127,46 @@ Uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig). Create any of:
   "worktreesDir": ".worktrees",
   "sort": "recent",
   "details": true,
-  "theme": "cyberpunk"
+  "theme": "forest",
+  "flashDuration": "5000"
 }
 ```
 
-CLI args override config file values.
+CLI arguments override config file values.
 
-## 📁 Project Structure
+## Snapshot Mode
+
+For automation, testing, or AI-assisted development:
+
+```bash
+pnpm start -- --snapshot --root /path/to/repo
+```
+
+Renders the UI once and exits. Bypasses the tmux requirement.
+
+## Project Structure
 
 ```
 src/
-├── index.tsx    ─── React/Ink UI components
-├── git.ts       ─── Git worktree operations
-├── theme.ts     ─── Theme system & built-ins
-└── tmux.ts      ─── Tmux pane integration
+├── index.tsx    # React/Ink UI components and CLI
+├── git.ts       # Git worktree operations
+├── theme.ts     # Theme system and built-in themes
+└── tmux.ts      # Tmux integration and Claude session detection
 
-themes/          ─── Custom theme JSON files
-.worktrees/      ─── Shell helper scripts (source these!)
+themes/          # Custom theme JSON files
+plugin/          # Claude Code session status plugin
+.worktrees/      # Shell helper scripts (source these, don't execute)
 ```
 
-## 🐚 Shell Scripts
-
-Helper scripts in `.worktrees/` must be **sourced**, not executed:
-
-```bash
-# Create worktree and cd into it
-source .worktrees/worktree-add.sh my-feature
-
-# Merge current worktree back to main
-source .worktrees/worktree-merge.sh
-
-# Merge specific worktree
-source .worktrees/worktree-merge.sh my-feature
-```
-
-## 📋 Requirements
-
-- Node.js ≥ 18
-- pnpm
-- Git
-- tmux *(must run inside a tmux session)*
-
-## 🛠 Development
+## Development
 
 ```bash
 pnpm dev      # tsc watch mode
 pnpm watch    # tsx watch mode (runs directly)
-pnpm build    # compile
-pnpm start    # run
+pnpm build    # compile TypeScript
+pnpm start    # run the app
 ```
 
----
+## License
 
-<div align="center">
-
-**MIT License**
-
-*Built with [Ink](https://github.com/vadimdemedes/ink) · Powered by caffeine and terminal nostalgia*
-
-</div>
+MIT
