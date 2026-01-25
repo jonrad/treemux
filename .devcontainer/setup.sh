@@ -69,4 +69,11 @@ mkdir -p "$CLAUDE_HOME/hooks"
 # ============================================
 pnpm install
 
+# ============================================
+# TreeMux Plugin
+# ============================================
+# Install the session tracker plugin for Claude Code
+claude plugin marketplace add jonrad/treemux 2>/dev/null || true
+claude plugin install session-tracker@treemux-plugins 2>/dev/null || true
+
 echo "DevContainer setup complete!"
