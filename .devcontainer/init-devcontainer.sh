@@ -35,6 +35,7 @@ fi
 mkdir -p "$HOME/.claude/treemux"
 mkdir -p "$HOME/.claude/commands"
 mkdir -p "$HOME/.claude/skills"
+mkdir -p "$HOME/.claude/plugins"
 
 # Generate docker-compose.yml based on worktree vs main
 if [ "$IS_WORKTREE" = "true" ]; then
@@ -68,8 +69,12 @@ services:
       - $HOME/.claude/treemux:/home/node/.claude/treemux:rw
       - $HOME/.claude/commands:/home/node/.claude/commands:rw
       - $HOME/.claude/skills:/home/node/.claude/skills:rw
+      - $HOME/.claude/plugins:/home/node/.claude/plugins:rw
+      # Git config from host
+      - $HOME/.gitconfig:/home/node/.gitconfig:ro
     environment:
       HOST_TMUX_PANE: "${TMUX_PANE:-}"
+      HOST_HOME: "$HOME"
       NODE_OPTIONS: "--max-old-space-size=4096"
       CLAUDE_CONFIG_DIR: /home/node/.claude
       POWERLEVEL9K_DISABLE_GITSTATUS: "true"
@@ -118,8 +123,12 @@ services:
       - $HOME/.claude/treemux:/home/node/.claude/treemux:rw
       - $HOME/.claude/commands:/home/node/.claude/commands:rw
       - $HOME/.claude/skills:/home/node/.claude/skills:rw
+      - $HOME/.claude/plugins:/home/node/.claude/plugins:rw
+      # Git config from host
+      - $HOME/.gitconfig:/home/node/.gitconfig:ro
     environment:
       HOST_TMUX_PANE: "${TMUX_PANE:-}"
+      HOST_HOME: "$HOME"
       NODE_OPTIONS: "--max-old-space-size=4096"
       CLAUDE_CONFIG_DIR: /home/node/.claude
       POWERLEVEL9K_DISABLE_GITSTATUS: "true"

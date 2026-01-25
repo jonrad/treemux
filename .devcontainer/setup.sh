@@ -5,6 +5,21 @@
 set -e
 
 # ============================================
+# Host Path Compatibility
+# ============================================
+# Create symlink so host paths in plugin configs resolve correctly
+# e.g., /Users/jonrad/.claude -> /home/node/.claude
+if [ -n "$HOST_HOME" ] && [ "$HOST_HOME" != "/home/node" ]; then
+    HOST_PARENT=$(dirname "$HOST_HOME")
+    if [ ! -d "$HOST_PARENT" ]; then
+        sudo mkdir -p "$HOST_PARENT"
+    fi
+    if [ ! -e "$HOST_HOME" ]; then
+        sudo ln -s /home/node "$HOST_HOME"
+    fi
+fi
+
+# ============================================
 # Claude Code Configuration
 # ============================================
 # Settings, commands, and credentials are shared via volume at /home/node/.claude-shared

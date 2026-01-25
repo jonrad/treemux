@@ -642,15 +642,10 @@ const cliOptions = program.opts<{
 if (cliOptions.installPlugin) {
   console.log("Installing TreeMux session tracker plugin for Claude Code...\n");
 
-  // Get the project root directory (where .claude-plugin/marketplace.json is)
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const projectRoot = resolve(__dirname, "..");
-
   try {
-    // First, try to add the marketplace from local directory
+    // Add the marketplace from GitHub
     console.log("Adding TreeMux marketplace...");
-    execSync(`claude plugin marketplace add "${projectRoot}"`, {
+    execSync("claude plugin marketplace add jonrad/treemux", {
       stdio: "inherit",
     });
 
@@ -663,7 +658,6 @@ if (cliOptions.installPlugin) {
     console.log("\nPlugin installed successfully!");
     console.log("The session tracker will now show status indicators in TreeMux.");
   } catch (err) {
-    // If the above fails, try the slash command format as fallback
     console.error("\nAutomatic installation failed.");
     console.error("Please install manually by running these commands in Claude Code:\n");
     console.error("  /plugin marketplace add jonrad/treemux");
